@@ -1,0 +1,165 @@
+{
+  "project": "github-differ",
+  "description": "Browser extension that groups a GitHub PR diff into reviewable units and suggests a reading order, rendered on the Files-changed page.",
+  "tasks": [
+    {
+      "id": "01-scaffold",
+      "category": "foundational",
+      "description": "Scaffold the WXT + Svelte + TypeScript + Tailwind extension with Bun.",
+      "steps": [
+        "Initialize a WXT project configured for Svelte and TypeScript strict mode",
+        "Add Tailwind CSS wired for Shadow-DOM-scoped styles",
+        "Configure the content-script match pattern for https://github.com/*/*/pull/*/files",
+        "Add a placeholder background service worker and options page entrypoints",
+        "Verify `make dev` builds the unpacked extension with no type or build errors",
+        "Verify the extension loads in Chrome and the background worker starts"
+      ],
+      "passes": true
+    },
+    {
+      "id": "02-storage-settings",
+      "category": "foundational",
+      "description": "Typed settings storage and an Options page for keys and model choice.",
+      "steps": [
+        "Define a typed Settings shape: githubToken, anthropicApiKey, model, effort",
+        "Implement lib/storage.ts with get/set helpers over browser.storage.local",
+        "Build the Options Svelte page to edit and persist all settings",
+        "Default model to claude-opus-4-8 and effort to medium; offer sonnet/haiku options",
+        "Never log secrets; mask key inputs in the UI",
+        "Unit-test the storage accessors with a mocked storage backend"
+      ],
+      "passes": true
+    },
+    {
+      "id": "03-messaging",
+      "category": "foundational",
+      "description": "Shared discriminated-union message contract between content script and worker.",
+      "steps": [
+        "Define ANALYZE request and RESULT/ERROR response message types in lib/messaging.ts",
+        "Implement a typed sendMessage wrapper and a worker-side handler registrar",
+        "Round-trip a no-op ANALYZE -> RESULT message end to end",
+        "Unit-test message serialization/typing"
+      ],
+      "passes": true
+    },
+    {
+      "id": "04-github-client",
+      "category": "core",
+      "description": "GitHub REST client to fetch diff, files, commits, and PR metadata.",
+      "steps": [
+        "Fetch the unified diff via Accept: application/vnd.github.v3.diff",
+        "Fetch files (paginated, per_page=100), commits, and PR metadata/body",
+        "Extract linked/closing issues from the PR body (Closes/Fixes #N)",
+        "Authenticate with the user PAT via Authorization: Bearer",
+        "Surface rate-limit and auth errors as typed errors",
+        "Unit-test against recorded fixture responses in tests/fixtures/"
+      ],
+      "passes": true
+    },
+    {
+      "id": "05-diff-parser",
+      "category": "core",
+      "description": "Pure unified-diff parser producing structured files and hunks.",
+      "steps": [
+        "Parse the unified diff into FileDiff[] with path, status, and Hunk[]",
+        "Capture per-hunk added/removed line counts and line ranges for jump links",
+        "Handle renames, binary files, and new/deleted files",
+        "Keep the module pure (no DOM/browser imports) for unit testing",
+        "Unit-test with multiple fixture diffs including renames and binaries"
+      ],
+      "passes": true
+    },
+    {
+      "id": "06-heuristics",
+      "category": "core",
+      "description": "Mechanical-change classifier that runs before the LLM.",
+      "steps": [
+        "Flag lockfiles, generated/vendored paths, and minified files",
+        "Flag pure renames (status renamed, no content change)",
+        "Flag formatting-only hunks (identical after whitespace normalization)",
+        "Return interesting vs mechanical partitions for the pipeline",
+        "Keep pure; unit-test each rule with fixtures"
+      ],
+      "passes": true
+    },
+    {
+      "id": "07-grouping-schema",
+      "category": "core",
+      "description": "JSON schema, prompt, and result types for the grouping/reading-order output.",
+      "steps": [
+        "Define GROUPING_SCHEMA (groups[], readingOrder[], per-group label and fileRefs, intent summary)",
+        "Ensure every object sets additionalProperties:false; validate non-schema constraints client-side",
+        "Write the system prompt: cluster by concern, label, order, with one-line rationale",
+        "Export TypeScript types matching the schema",
+        "Unit-test that a sample model JSON validates against the types"
+      ],
+      "passes": true
+    },
+    {
+      "id": "08-anthropic-client",
+      "category": "core",
+      "description": "Claude client wrapper that returns structured grouping for interesting hunks.",
+      "steps": [
+        "Initialize @anthropic-ai/sdk with dangerouslyAllowBrowser and the stored key",
+        "Call the selected model with thinking adaptive and output_config.format = json_schema",
+        "Place stable system+schema first and the volatile diff last (cache-friendly)",
+        "JSON.parse the result and validate against the grouping types",
+        "Handle rate-limit/refusal/oversize errors as typed errors",
+        "Unit-test parsing/validation with a recorded API response fixture"
+      ],
+      "passes": true
+    },
+    {
+      "id": "09-pipeline",
+      "category": "core",
+      "description": "Background orchestration: fetch -> parse -> pre-pass -> LLM -> cache.",
+      "steps": [
+        "Wire GitHub client, diff parser, heuristics, and Anthropic client together",
+        "Send only interesting hunks to the LLM; merge mechanical groups back in",
+        "Cache the grouping by PR head SHA in storage; reuse on repeat opens",
+        "Return a single typed grouping result over the messaging channel",
+        "Integration-test the pipeline with fixtures (LLM call mocked)"
+      ],
+      "passes": true
+    },
+    {
+      "id": "10-content-detection",
+      "category": "core",
+      "description": "Detect the PR Files page (incl. soft navigation) and mount the panel host.",
+      "steps": [
+        "Parse owner/repo/number from the URL on the Files-changed page",
+        "Handle Turbo/PJAX soft navigation (turbo:load + MutationObserver fallback)",
+        "Mount a Shadow-DOM panel host via WXT createShadowRootUi; avoid duplicate mounts",
+        "Trigger an ANALYZE request and show a loading state",
+        "Manually verify navigation between PRs re-runs detection correctly"
+      ],
+      "passes": true
+    },
+    {
+      "id": "11-panel-ui",
+      "category": "core",
+      "description": "Svelte panel rendering intent, groups, reading order, and jump links.",
+      "steps": [
+        "Render the intent summary and change-type label",
+        "Render groups as collapsible sections with labels and per-group rationale",
+        "Render the reading order as an ordered, clickable list that scrolls to files/hunks",
+        "Fold mechanical groups by default; allow expand",
+        "Style with Tailwind scoped inside the Shadow DOM",
+        "Playwright-test rendering against a fixture Files page"
+      ],
+      "passes": true
+    },
+    {
+      "id": "12-error-ux",
+      "category": "polish",
+      "description": "User-facing handling for missing keys, auth, rate limits, and failures.",
+      "steps": [
+        "Detect missing/invalid keys and link to the Options page",
+        "Map GitHub and Anthropic errors to clear panel messages with a retry action",
+        "Add a manual refresh that bypasses the cache",
+        "Playwright-test the error and empty states"
+      ],
+      "passes": true
+    }
+  ]
+}

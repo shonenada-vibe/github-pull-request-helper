@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+.output/
+.wxt/
+*.zip
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# Secrets / local config — NEVER commit keys or tokens
+.env
+.env.*
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
