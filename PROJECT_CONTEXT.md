@@ -56,6 +56,18 @@ content script (detect PR)
 
 ---
 
+## LLM providers (pluggable)
+The grouping call goes through a **provider dispatcher** (`lib/llm/dispatch.ts`) selected by
+`settings.provider` (`anthropic` | `openai`). Both providers return the same validated
+`GroupingResponse`, so the pipeline and UI are provider-agnostic.
+- **Anthropic** (`lib/anthropic/client.ts`): official `@anthropic-ai/sdk`. Details below.
+- **OpenAI-compatible** (`lib/openai/client.ts`): raw `fetch` to `POST {baseUrl}/chat/completions`
+  with `response_format: { type: "json_schema", json_schema: { strict: true, schema: GROUPING_SCHEMA } }`.
+  Works with OpenAI, OpenRouter, Together, and local servers (LM Studio, Ollama). The base URL and
+  model are user-supplied free text; `effort` does not apply. Default OpenAI host is granted in the
+  manifest; custom base URLs are granted at runtime from the Options page via `optional_host_permissions`
+  + `browser.permissions.request` (see `lib/host-permission.ts`).
+
 ## Anthropic / Claude usage (authoritative — do not guess)
 - **Default model:** `claude-opus-4-8` (best grouping reasoning). User-selectable in Options:
   `claude-opus-4-8` ($5/$25 per 1M), `claude-sonnet-4-6` ($3/$15), `claude-haiku-4-5` ($1/$5).
@@ -130,6 +142,8 @@ github-differ/
 │  ├─ grouping/                # schema + prompt + result types
 │  ├─ github/                  # REST client
 │  ├─ anthropic/               # Claude client wrapper
+│  ├─ openai/                  # OpenAI-compatible client wrapper
+│  ├─ llm/                     # provider dispatcher (anthropic | openai)
 │  ├─ messaging.ts             # shared message types
 │  └─ storage.ts               # typed settings/cache accessors
 ├─ components/                 # Svelte panel + subcomponents

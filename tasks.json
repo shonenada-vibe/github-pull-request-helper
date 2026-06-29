@@ -160,6 +160,20 @@
         "Playwright-test the error and empty states"
       ],
       "passes": true
+    },
+    {
+      "id": "13-openai-provider",
+      "category": "core",
+      "description": "Add an OpenAI-compatible provider alongside Anthropic, selectable in settings.",
+      "steps": [
+        "Add a Provider setting and OpenAI fields (key, base URL, model); branch hasCredentials",
+        "Implement lib/openai/client.ts (fetch chat/completions with json_schema structured output)",
+        "Add lib/llm/dispatch.ts to route grouping by settings.provider; wire it in the background",
+        "Add provider selector + conditional fields to the Options page",
+        "Grant host access for custom base URLs at runtime (optional_host_permissions)",
+        "Unit-test the OpenAI client, dispatcher routing, and provider-aware hasCredentials"
+      ],
+      "passes": true
     }
   ]
 }

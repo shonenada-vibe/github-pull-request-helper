@@ -25,7 +25,11 @@ make dev          # build unpacked extension with HMR
 ```
 Load `.output/chrome-mv3/` as an unpacked extension, open the Options page, and add:
 - a **GitHub fine-grained PAT** (read-only: Pull requests + Contents),
-- an **Anthropic API key**, and a model (defaults to `claude-opus-4-8`).
+- an **LLM provider**:
+  - **Anthropic** — an Anthropic API key + model (defaults to `claude-opus-4-8`), or
+  - **OpenAI-compatible** — an API key, base URL (e.g. `https://api.openai.com/v1`, OpenRouter,
+    Together, or a local LM Studio/Ollama server), and a model name. Custom base URLs prompt for
+    host access on save.
 
 > ⚠️ **Security note:** the MVP calls the Claude API directly from the browser, so the Anthropic key is
 > stored client-side. Fine for personal use with your own key; for wider distribution, route Claude

@@ -48,11 +48,20 @@ describe('settings storage', () => {
 });
 
 describe('hasCredentials', () => {
-  it('requires both tokens', () => {
+  it('requires a github token plus the anthropic key for the anthropic provider', () => {
     expect(hasCredentials({ ...DEFAULT_SETTINGS })).toBe(false);
     expect(
       hasCredentials({ ...DEFAULT_SETTINGS, githubToken: 'a', anthropicApiKey: 'b' }),
     ).toBe(true);
+  });
+
+  it('requires key + base URL + model for the openai provider', () => {
+    const base = { ...DEFAULT_SETTINGS, githubToken: 'a', provider: 'openai' as const };
+    expect(hasCredentials({ ...base, openaiApiKey: 'b', openaiModel: 'm' })).toBe(true);
+    // Missing model.
+    expect(hasCredentials({ ...base, openaiApiKey: 'b', openaiModel: '' })).toBe(false);
+    // Anthropic key is irrelevant when the openai provider is active.
+    expect(hasCredentials({ ...base, anthropicApiKey: 'x' })).toBe(false);
   });
 });
 

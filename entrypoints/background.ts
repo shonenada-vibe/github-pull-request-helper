@@ -8,15 +8,19 @@ import {
 } from '../lib/messaging';
 import { getSettings, hasCredentials, getCachedGrouping, setCachedGrouping } from '../lib/storage';
 import { fetchPullRequest, GithubApiError } from '../lib/github/client';
-import { requestGrouping, AnthropicError } from '../lib/anthropic/client';
+import { AnthropicError } from '../lib/anthropic/client';
+import { OpenAIError } from '../lib/openai/client';
+import { requestGroupingForSettings } from '../lib/llm/dispatch';
 import { runAnalysis } from '../lib/pipeline';
 
 function toErrorResponse(err: unknown): AnalyzeResponse {
   let kind: ErrorKind = 'unknown';
   if (err instanceof GithubApiError) {
     kind = err.rateLimited ? 'rate-limit' : 'github';
+  } else if (err instanceof OpenAIError) {
+    kind = err.rateLimited ? 'rate-limit' : 'openai';
   } else if (err instanceof AnthropicError) {
-    kind = 'anthropic';
+    kind = err.status === 429 ? 'rate-limit' : 'anthropic';
   }
   return { type: 'ERROR', error: err instanceof Error ? err.message : String(err), kind };
 }
@@ -34,7 +38,7 @@ export default defineBackground(() => {
     if (!hasCredentials(settings)) {
       return {
         type: 'ERROR',
-        error: 'Add a GitHub token and Anthropic API key in the extension options.',
+        error: 'Add a GitHub token and your LLM provider credentials in the extension options.',
         kind: 'missing-credentials',
       };
     }
@@ -50,7 +54,7 @@ export default defineBackground(() => {
         },
         {
           fetchPR: fetchPullRequest,
-          requestGrouping,
+          requestGrouping: (args) => requestGroupingForSettings(args),
           getCache: getCachedGrouping,
           setCache: setCachedGrouping,
         },

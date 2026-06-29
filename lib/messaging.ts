@@ -20,6 +20,7 @@ export type ErrorKind =
   | 'github'
   | 'rate-limit'
   | 'anthropic'
+  | 'openai'
   | 'unknown';
 
 /** Content script -> background: open the extension Options page. */

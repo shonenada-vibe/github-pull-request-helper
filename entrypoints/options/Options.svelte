@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { browser } from 'wxt/browser';
   import {
     getSettings,
     setSettings,
@@ -7,6 +8,7 @@
     type Settings,
   } from '../../lib/storage';
   import { MODELS } from '../../lib/anthropic/client';
+  import { originPattern } from '../../lib/host-permission';
 
   let form = $state<Settings>({ ...DEFAULT_SETTINGS });
   let saved = $state(false);
@@ -17,8 +19,20 @@
     form = await getSettings();
   });
 
+  async function ensureOpenAiHostPermission() {
+    const pattern = originPattern(form.openaiBaseUrl);
+    if (!pattern) return;
+    try {
+      const has = await browser.permissions.contains({ origins: [pattern] });
+      if (!has) await browser.permissions.request({ origins: [pattern] });
+    } catch {
+      // Best-effort: still save even if the grant is declined/unavailable.
+    }
+  }
+
   async function save(event: Event) {
     event.preventDefault();
+    if (form.provider === 'openai') await ensureOpenAiHostPermission();
     await setSettings($state.snapshot(form));
     saved = true;
     setTimeout(() => (saved = false), 2000);
@@ -29,7 +43,7 @@
   <h1 class="mb-1 text-xl font-semibold">github-differ settings</h1>
   <p class="mb-6 text-sm text-gray-500">
     Credentials are stored locally in this browser profile and never leave it
-    except to call the GitHub and Anthropic APIs directly.
+    except to call the GitHub and your chosen LLM API directly.
   </p>
 
   <form class="space-y-5" onsubmit={save}>
@@ -48,41 +62,99 @@
     </label>
 
     <label class="block">
-      <span class="text-sm font-medium">Anthropic API key</span>
-      <input
-        type="password"
-        autocomplete="off"
-        bind:value={form.anthropicApiKey}
-        placeholder="sk-ant-…"
-        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
-      />
+      <span class="text-sm font-medium">LLM provider</span>
+      <select
+        bind:value={form.provider}
+        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+      >
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="openai">OpenAI-compatible</option>
+      </select>
     </label>
 
-    <div class="flex gap-4">
-      <label class="block flex-1">
-        <span class="text-sm font-medium">Model</span>
-        <select
-          bind:value={form.model}
-          class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
-        >
-          {#each MODELS as model (model)}
-            <option value={model}>{model}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label class="block flex-1">
-        <span class="text-sm font-medium">Effort</span>
-        <select
-          bind:value={form.effort}
-          class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
-        >
-          {#each efforts as effort (effort)}
-            <option value={effort}>{effort}</option>
-          {/each}
-        </select>
-      </label>
-    </div>
+    {#if form.provider === 'anthropic'}
+      <fieldset class="space-y-4 rounded border border-gray-200 p-4">
+        <legend class="px-1 text-xs font-semibold uppercase text-gray-500">
+          Anthropic
+        </legend>
+        <label class="block">
+          <span class="text-sm font-medium">Anthropic API key</span>
+          <input
+            type="password"
+            autocomplete="off"
+            bind:value={form.anthropicApiKey}
+            placeholder="sk-ant-…"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+        </label>
+        <div class="flex gap-4">
+          <label class="block flex-1">
+            <span class="text-sm font-medium">Model</span>
+            <select
+              bind:value={form.model}
+              class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            >
+              {#each MODELS as model (model)}
+                <option value={model}>{model}</option>
+              {/each}
+            </select>
+          </label>
+          <label class="block flex-1">
+            <span class="text-sm font-medium">Effort</span>
+            <select
+              bind:value={form.effort}
+              class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            >
+              {#each efforts as effort (effort)}
+                <option value={effort}>{effort}</option>
+              {/each}
+            </select>
+          </label>
+        </div>
+      </fieldset>
+    {:else}
+      <fieldset class="space-y-4 rounded border border-gray-200 p-4">
+        <legend class="px-1 text-xs font-semibold uppercase text-gray-500">
+          OpenAI-compatible
+        </legend>
+        <label class="block">
+          <span class="text-sm font-medium">API key</span>
+          <input
+            type="password"
+            autocomplete="off"
+            bind:value={form.openaiApiKey}
+            placeholder="sk-…"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Base URL</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            bind:value={form.openaiBaseUrl}
+            placeholder="https://api.openai.com/v1"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+          <span class="mt-1 block text-xs text-gray-500">
+            Works with OpenAI, OpenRouter, Together, or a local server (LM Studio,
+            Ollama). You'll be asked to grant access to this host on save.
+          </span>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Model</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            bind:value={form.openaiModel}
+            placeholder="gpt-4o-mini"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+        </label>
+      </fieldset>
+    {/if}
 
     <div class="flex items-center gap-3">
       <button

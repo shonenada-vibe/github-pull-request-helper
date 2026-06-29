@@ -1,7 +1,7 @@
 import type { PullRequestData } from './types';
 import type { Settings } from './storage';
 import type { GroupingResponse, GroupingResult, Group } from './grouping/types';
-import type { GroupingRequestParams } from './anthropic/client';
+import type { RequestGroupingArgs } from './llm/dispatch';
 import { partitionFiles, type ClassifiedFile } from './heuristics/classify';
 import { SYSTEM_PROMPT, buildUserContent } from './grouping/prompt';
 
@@ -14,7 +14,8 @@ export interface AnalysisDeps {
     number: number;
     token: string;
   }) => Promise<PullRequestData>;
-  requestGrouping: (params: GroupingRequestParams) => Promise<GroupingResponse>;
+  /** Provider-agnostic grouping request (dispatched by settings.provider). */
+  requestGrouping: (args: RequestGroupingArgs) => Promise<GroupingResponse>;
   getCache: (sha: string) => Promise<GroupingResult | undefined>;
   setCache: (sha: string, result: GroupingResult) => Promise<void>;
 }
@@ -96,9 +97,7 @@ export async function runAnalysis(
     };
   } else {
     response = await deps.requestGrouping({
-      apiKey: settings.anthropicApiKey,
-      model: settings.model,
-      effort: settings.effort,
+      settings,
       system: SYSTEM_PROMPT,
       userContent: buildUserContent(pr, interesting),
     });
