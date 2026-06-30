@@ -7,6 +7,8 @@ import {
 } from './types';
 
 export class GroupingValidationError extends Error {
+  /** The raw model text that failed to validate (for debugging). */
+  raw?: string;
   constructor(message: string) {
     super(`Invalid grouping response: ${message}`);
     this.name = 'GroupingValidationError';
@@ -15,6 +17,34 @@ export class GroupingValidationError extends Error {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Coerce a group's `files` into a `string[]`, tolerating the common ways models
+ * drift from the schema: an array of `{path}`/`{filename}` objects, or a single
+ * delimited string. Throws only when an entry is genuinely unusable.
+ */
+function coerceFiles(value: unknown, field: string): string[] {
+  if (value == null) return [];
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  if (!Array.isArray(value)) {
+    throw new GroupingValidationError(`${field} must be an array of file paths`);
+  }
+  return value.map((item, j) => {
+    if (typeof item === 'string') return item;
+    if (isObject(item)) {
+      const candidate = item.path ?? item.filename ?? item.file ?? item.name;
+      if (typeof candidate === 'string') return candidate;
+    }
+    throw new GroupingValidationError(
+      `${field}[${j}] must be a file path string or an object with a path`,
+    );
+  });
 }
 
 function asString(value: unknown, field: string): string {
@@ -40,6 +70,18 @@ function asLabel(value: unknown): InterestingLabel {
  * Pure — safe to unit test without the SDK.
  */
 export function parseGroupingResponse(text: string): GroupingResponse {
+  try {
+    return parseGroupingResponseInner(text);
+  } catch (err) {
+    if (err instanceof GroupingValidationError) {
+      // Carry the raw text so the UI/console can show what the model returned.
+      err.raw = text;
+    }
+    throw err;
+  }
+}
+
+function parseGroupingResponseInner(text: string): GroupingResponse {
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -58,15 +100,12 @@ export function parseGroupingResponse(text: string): GroupingResponse {
     if (!isObject(raw)) {
       throw new GroupingValidationError(`groups[${i}] must be an object`);
     }
-    if (!Array.isArray(raw.files) || raw.files.some((f) => typeof f !== 'string')) {
-      throw new GroupingValidationError(`groups[${i}].files must be string[]`);
-    }
     return {
       id: asString(raw.id, `groups[${i}].id`),
       title: asString(raw.title, `groups[${i}].title`),
       label: asLabel(raw.label),
       rationale: asString(raw.rationale, `groups[${i}].rationale`),
-      files: raw.files as string[],
+      files: coerceFiles(raw.files, `groups[${i}].files`),
     };
   });
 

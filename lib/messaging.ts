@@ -11,9 +11,28 @@ export interface AnalyzeRequest {
   force?: boolean;
 }
 
+/** Diagnostics surfaced in the panel's debug section. */
+export interface DebugInfo {
+  provider: string;
+  model: string;
+  totalFiles: number;
+  interesting: number;
+  mechanical: number;
+  usedLlm: boolean;
+  fromCache: boolean;
+  durationMs: number;
+}
+
 export type AnalyzeResponse =
-  | { type: 'RESULT'; result: GroupingResult; fromCache: boolean }
-  | { type: 'ERROR'; error: string; kind: ErrorKind };
+  | { type: 'RESULT'; result: GroupingResult; fromCache: boolean; debug: DebugInfo }
+  | {
+      type: 'ERROR';
+      error: string;
+      kind: ErrorKind;
+      /** Extra debugging context, e.g. the raw model output that failed to parse. */
+      detail?: string;
+      debug?: Partial<DebugInfo>;
+    };
 
 export type ErrorKind =
   | 'missing-credentials'

@@ -12,6 +12,9 @@ function reset() {
   panelState.error = undefined;
   panelState.errorKind = undefined;
   panelState.fromCache = false;
+  panelState.detail = undefined;
+  panelState.debug = undefined;
+  panelState.logs = [];
   panelState.onRefresh = undefined;
   panelState.onOpenOptions = undefined;
 }
@@ -81,6 +84,21 @@ describe('Panel', () => {
     expect(getByText('Reading order')).toBeTruthy();
     // Group titles appear (reading order + group card).
     expect(getByText('Mechanical / low-signal')).toBeTruthy();
+  });
+
+  it('shows the debug log and auto-expands raw model output on error', () => {
+    panelState.visible = true;
+    panelState.status = 'error';
+    panelState.error = 'Invalid grouping response: groups[0].files must be string[]';
+    panelState.errorKind = 'unknown';
+    panelState.detail = '{"groups":[{"files":[{"path":"src/a.ts"}]}]}';
+    panelState.logs = ['[12:00:00] Analyzing o/r#1', '[12:00:01] Error (unknown)'];
+
+    const { getByText } = render(Panel);
+    expect(getByText(/Debug log \(2\)/)).toBeTruthy();
+    // Raw output auto-expands because a detail was captured.
+    expect(getByText(/Raw model output/)).toBeTruthy();
+    expect(getByText(/"path":"src\/a.ts"/)).toBeTruthy();
   });
 
   it('jumps to a file when a reading-order step is clicked', async () => {

@@ -1,7 +1,7 @@
 import { defineContentScript, createShadowRootUi } from '#imports';
 import { mount, unmount } from 'svelte';
 import Panel from '../components/Panel.svelte';
-import { panelState, resetForLoading } from '../components/panel-state.svelte';
+import { panelState, resetForLoading, pushLog } from '../components/panel-state.svelte';
 import { sendAnalyze, sendOpenOptions } from '../lib/messaging';
 import { parsePrPath, isFilesTab, type PrLocation } from '../lib/pr-url';
 import '../assets/tailwind.css';
@@ -17,17 +17,50 @@ export default defineContentScript({
     async function analyze(loc: PrLocation, force = false) {
       current = loc;
       resetForLoading();
-      const res = await sendAnalyze({ type: 'ANALYZE', ...loc, force });
+      const startedAt = Date.now();
+      pushLog(
+        `Analyzing ${loc.owner}/${loc.repo}#${loc.number}${force ? ' (forced refresh)' : ''}`,
+      );
+
+      let res;
+      try {
+        res = await sendAnalyze({ type: 'ANALYZE', ...loc, force });
+      } catch (err) {
+        // The background channel itself failed (worker asleep, reload, etc.).
+        if (!current || current.number !== loc.number) return;
+        panelState.status = 'error';
+        panelState.error = `Could not reach the extension worker: ${String(err)}`;
+        panelState.errorKind = 'unknown';
+        pushLog(`Messaging error: ${String(err)}`);
+        return;
+      }
+
       // Ignore stale responses if the user navigated away mid-request.
-      if (!current || current.number !== loc.number) return;
+      if (!current || current.number !== loc.number) {
+        pushLog('Ignored a stale response (navigated away).');
+        return;
+      }
+
+      const roundTrip = Date.now() - startedAt;
       if (res.type === 'RESULT') {
         panelState.status = 'ready';
         panelState.result = res.result;
         panelState.fromCache = res.fromCache;
+        panelState.debug = res.debug;
+        const d = res.debug;
+        pushLog(
+          `Done in ${roundTrip}ms via ${d.provider}/${d.model || '(model unset)'} — ` +
+            `${d.totalFiles} files (${d.interesting} interesting, ${d.mechanical} mechanical), ` +
+            `${d.usedLlm ? 'LLM' : 'no LLM'}${d.fromCache ? ', from cache' : ''}.`,
+        );
+        pushLog(`Rendered ${res.result.groups.length} groups.`);
       } else {
         panelState.status = 'error';
         panelState.error = res.error;
         panelState.errorKind = res.kind;
+        panelState.detail = res.detail;
+        pushLog(`Error (${res.kind}) after ${roundTrip}ms: ${res.error}`);
+        if (res.detail) pushLog('Raw model output captured below.');
       }
     }
 

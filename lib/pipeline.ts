@@ -28,9 +28,19 @@ export interface RunAnalysisParams {
   force?: boolean;
 }
 
+export interface AnalysisDiagnostics {
+  provider: string;
+  model: string;
+  totalFiles: number;
+  interesting: number;
+  mechanical: number;
+  usedLlm: boolean;
+}
+
 export interface AnalysisOutcome {
   result: GroupingResult;
   fromCache: boolean;
+  diagnostics: AnalysisDiagnostics;
 }
 
 function mechanicalGroup(mechanical: ClassifiedFile[]): Group {
@@ -78,14 +88,28 @@ export async function runAnalysis(
     token: settings.githubToken,
   });
 
+  const { interesting, mechanical } = partitionFiles(pr.files);
+  const baseDiagnostics = {
+    provider: settings.provider,
+    model: settings.provider === 'openai' ? settings.openaiModel : settings.model,
+    totalFiles: pr.files.length,
+    interesting: interesting.length,
+    mechanical: mechanical.length,
+  };
+
   if (!force) {
     const cached = await deps.getCache(pr.headSha);
-    if (cached) return { result: cached, fromCache: true };
+    if (cached) {
+      return {
+        result: cached,
+        fromCache: true,
+        diagnostics: { ...baseDiagnostics, usedLlm: false },
+      };
+    }
   }
 
-  const { interesting, mechanical } = partitionFiles(pr.files);
-
   let response: GroupingResponse;
+  let usedLlm = false;
   if (interesting.length === 0) {
     // Nothing worth an LLM pass — everything is mechanical.
     response = {
@@ -96,6 +120,7 @@ export async function runAnalysis(
       readingOrder: [],
     };
   } else {
+    usedLlm = true;
     response = await deps.requestGrouping({
       settings,
       system: SYSTEM_PROMPT,
@@ -105,5 +130,5 @@ export async function runAnalysis(
 
   const result = finalize(response, mechanical);
   await deps.setCache(pr.headSha, result);
-  return { result, fromCache: false };
+  return { result, fromCache: false, diagnostics: { ...baseDiagnostics, usedLlm } };
 }

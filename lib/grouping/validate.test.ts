@@ -52,9 +52,33 @@ describe('parseGroupingResponse', () => {
     expect(() => parseGroupingResponse(JSON.stringify(bad))).toThrow(/unknown group/);
   });
 
-  it('rejects non-string file entries', () => {
+  it('rejects unusable file entries', () => {
     const bad = JSON.parse(JSON.stringify(valid));
     bad.groups[0].files = [123];
     expect(() => parseGroupingResponse(JSON.stringify(bad))).toThrow(/files/);
+  });
+
+  it('coerces files given as {path} objects', () => {
+    const variant = JSON.parse(JSON.stringify(valid));
+    variant.groups[0].files = [{ path: 'src/limiter.ts' }, { filename: 'a.ts' }];
+    const result = parseGroupingResponse(JSON.stringify(variant));
+    expect(result.groups[0]?.files).toEqual(['src/limiter.ts', 'a.ts']);
+  });
+
+  it('coerces files given as a delimited string', () => {
+    const variant = JSON.parse(JSON.stringify(valid));
+    variant.groups[0].files = 'src/a.ts, src/b.ts';
+    const result = parseGroupingResponse(JSON.stringify(variant));
+    expect(result.groups[0]?.files).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+
+  it('attaches the raw text to validation errors', () => {
+    try {
+      parseGroupingResponse('{not json');
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(GroupingValidationError);
+      expect((err as GroupingValidationError).raw).toBe('{not json');
+    }
   });
 });

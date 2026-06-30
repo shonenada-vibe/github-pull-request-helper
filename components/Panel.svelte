@@ -10,10 +10,22 @@
     new Map<string, Group>((result?.groups ?? []).map((g) => [g.id, g])),
   );
 
+  let showDebug = $state(false);
+
+  // Auto-open the debug section when the model returned raw output we captured.
+  $effect(() => {
+    if (panelState.detail) showDebug = true;
+  });
+
   function jumpToGroup(groupId: string) {
     const group = groupsById.get(groupId);
     const first = group?.files[0];
     if (first) scrollToFile(first);
+  }
+
+  function copyLogs() {
+    const text = panelState.logs.join('\n');
+    void navigator.clipboard?.writeText(text);
   }
 </script>
 
@@ -113,6 +125,45 @@
             {/each}
           </div>
         </section>
+      {/if}
+
+      {#if panelState.logs.length}
+        <div class="mt-4 border-t border-gray-200 pt-2">
+          <button
+            type="button"
+            class="flex w-full items-center gap-1 text-xs font-semibold uppercase text-gray-500"
+            onclick={() => (showDebug = !showDebug)}
+          >
+            <span class="text-gray-400">{showDebug ? '▾' : '▸'}</span>
+            Debug log ({panelState.logs.length})
+          </button>
+          {#if showDebug}
+            <div class="mt-2 space-y-2">
+              <div class="flex justify-end">
+                <button
+                  type="button"
+                  class="text-xs text-sky-700 hover:underline"
+                  onclick={copyLogs}
+                >
+                  Copy log
+                </button>
+              </div>
+              <pre
+                class="max-h-40 overflow-auto whitespace-pre-wrap rounded bg-gray-900 p-2 text-[11px] leading-snug text-gray-100">{panelState.logs.join(
+                  '\n',
+                )}</pre>
+              {#if panelState.detail}
+                <div>
+                  <p class="mb-1 text-xs font-semibold text-gray-500">
+                    Raw model output (failed to parse)
+                  </p>
+                  <pre
+                    class="max-h-48 overflow-auto whitespace-pre-wrap rounded bg-gray-900 p-2 text-[11px] leading-snug text-amber-100">{panelState.detail}</pre>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
   </aside>
