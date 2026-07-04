@@ -13,7 +13,7 @@ You are given a PR's title, description, linked issues, commit messages, and the
 Your job:
 1. Write a one-paragraph "intent" summary: what this PR does and why, in plain language. Combine the description and the actual diff — the diff is the source of truth when they disagree.
 2. Classify the overall changeType (e.g. "feature", "bugfix", "refactor", "chore", "test", "docs").
-3. Cluster the changed files into reviewable GROUPS by concern (not just by directory). Each group has a short title, a label (behavioral | refactor | test | config | docs), and a one-line rationale describing what to look for. A file should appear in exactly one group. Use only the file paths provided.
+3. Cluster the changed files into reviewable GROUPS by concern (not just by directory). Each group has a short title, a label (behavioral | refactor | test | config | docs), an importance (high = the core or riskiest changes that deserve real scrutiny, medium = supporting changes, low = peripheral: docs, straightforward config or test scaffolding), and a one-line rationale describing what to look for. A file should appear in exactly one group. Use only the file paths provided.
 4. Produce a READING ORDER over the groups that minimizes back-tracking: typically start with the new/changed public interface or the core behavioral change, then its implementation, then call sites, then tests, then config/docs. Give a one-line reason for each step.
 
 Be concise. Prefer a few meaningful groups over many tiny ones. Respond only with JSON matching the provided schema.`;

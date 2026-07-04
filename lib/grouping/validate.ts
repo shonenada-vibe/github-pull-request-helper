@@ -1,8 +1,10 @@
 import {
   INTERESTING_LABELS,
+  IMPORTANCE_LEVELS,
   type GroupingResponse,
   type Group,
   type InterestingLabel,
+  type Importance,
   type ReadingStep,
 } from './types';
 
@@ -52,6 +54,17 @@ function asString(value: unknown, field: string): string {
     throw new GroupingValidationError(`${field} must be a string`);
   }
   return value;
+}
+
+/** Lenient: providers that don't know the field (Carevie) default to medium. */
+function asImportance(value: unknown): Importance {
+  if (
+    typeof value === 'string' &&
+    (IMPORTANCE_LEVELS as readonly string[]).includes(value)
+  ) {
+    return value as Importance;
+  }
+  return 'medium';
 }
 
 function asLabel(value: unknown): InterestingLabel {
@@ -104,6 +117,7 @@ function parseGroupingResponseInner(text: string): GroupingResponse {
       id: asString(raw.id, `groups[${i}].id`),
       title: asString(raw.title, `groups[${i}].title`),
       label: asLabel(raw.label),
+      importance: asImportance(raw.importance),
       rationale: asString(raw.rationale, `groups[${i}].rationale`),
       files: coerceFiles(raw.files, `groups[${i}].files`),
     };

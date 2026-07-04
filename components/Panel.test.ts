@@ -105,6 +105,50 @@ describe('Panel', () => {
     expect(getByText(/"path":"src\/a.ts"/)).toBeTruthy();
   });
 
+  it('sorts the groups list by importance, mechanical last', () => {
+    panelState.visible = true;
+    panelState.status = 'ready';
+    panelState.result = {
+      intent: 'x',
+      changeType: 'feature',
+      groups: [
+        {
+          id: 'mech',
+          title: 'Mechanical stuff',
+          label: 'mechanical',
+          importance: 'low',
+          rationale: 'r',
+          files: [],
+        },
+        {
+          id: 'docs',
+          title: 'Docs updates',
+          label: 'docs',
+          importance: 'low',
+          rationale: 'r',
+          files: [],
+        },
+        {
+          id: 'core',
+          title: 'Core behavior',
+          label: 'behavioral',
+          importance: 'high',
+          rationale: 'r',
+          files: [],
+        },
+      ],
+      readingOrder: [],
+      hasMechanical: true,
+    };
+
+    const { container } = render(Panel);
+    const html = container.innerHTML;
+    expect(html.indexOf('Core behavior')).toBeLessThan(html.indexOf('Docs updates'));
+    expect(html.indexOf('Docs updates')).toBeLessThan(
+      html.indexOf('Mechanical stuff'),
+    );
+  });
+
   it('toggles Review Mode: rearranges the page and restores it', async () => {
     document.body.innerHTML = `
       <div data-path="bun.lockb">lock</div>

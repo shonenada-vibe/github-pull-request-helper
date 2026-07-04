@@ -16,6 +16,12 @@
     docs: 'bg-slate-100 text-slate-700',
     mechanical: 'bg-gray-100 text-gray-500',
   };
+
+  const importanceColors: Record<string, string> = {
+    high: 'bg-red-100 text-red-800',
+    medium: 'bg-amber-50 text-amber-700',
+    low: 'bg-gray-100 text-gray-500',
+  };
 </script>
 
 <div class="rounded-md border border-gray-200 bg-white">
@@ -26,6 +32,16 @@
   >
     <span class="text-gray-400">{open ? '▾' : '▸'}</span>
     <span class="flex-1 font-medium text-gray-900">{group.title}</span>
+    {#if group.importance && group.label !== 'mechanical'}
+      <span
+        class="rounded-full px-2 py-0.5 text-xs font-medium {importanceColors[
+          group.importance
+        ]}"
+        title="Importance"
+      >
+        {group.importance}
+      </span>
+    {/if}
     <span
       class="rounded-full px-2 py-0.5 text-xs font-medium {labelColors[
         group.label

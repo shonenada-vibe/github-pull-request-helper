@@ -1,4 +1,4 @@
-import { INTERESTING_LABELS } from './types';
+import { INTERESTING_LABELS, IMPORTANCE_LEVELS } from './types';
 
 /**
  * JSON schema passed to Claude via `output_config.format`. Constrains the model
@@ -31,6 +31,12 @@ export const GROUPING_SCHEMA = {
           id: { type: 'string', description: 'Short stable id, e.g. "g1".' },
           title: { type: 'string', description: 'Short human-readable group title.' },
           label: { type: 'string', enum: [...INTERESTING_LABELS] },
+          importance: {
+            type: 'string',
+            enum: [...IMPORTANCE_LEVELS],
+            description:
+              'Reviewer scrutiny this group deserves: high = core/riskiest changes, medium = supporting, low = peripheral.',
+          },
           rationale: {
             type: 'string',
             description: 'One line: what this group changes / what to look for.',
@@ -41,7 +47,7 @@ export const GROUPING_SCHEMA = {
             description: 'Paths of the files in this group (from the provided list).',
           },
         },
-        required: ['id', 'title', 'label', 'rationale', 'files'],
+        required: ['id', 'title', 'label', 'importance', 'rationale', 'files'],
       },
     },
     readingOrder: {

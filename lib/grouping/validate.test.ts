@@ -40,6 +40,20 @@ describe('parseGroupingResponse', () => {
     );
   });
 
+  it('keeps a valid importance and defaults missing/invalid ones to medium', () => {
+    const withImportance = structuredClone(valid) as Record<string, unknown>;
+    (withImportance.groups as Array<Record<string, unknown>>)[0]!.importance = 'high';
+    (withImportance.groups as Array<Record<string, unknown>>)[1]!.importance =
+      'critical'; // Not a known level.
+    const result = parseGroupingResponse(JSON.stringify(withImportance));
+    expect(result.groups[0]?.importance).toBe('high');
+    expect(result.groups[1]?.importance).toBe('medium');
+    // Absent entirely (e.g. Carevie) also lands on medium.
+    expect(parseGroupingResponse(JSON.stringify(valid)).groups[0]?.importance).toBe(
+      'medium',
+    );
+  });
+
   it('rejects an invalid label', () => {
     const bad = structuredClone(valid);
     bad.groups[0]!.label = 'nonsense';

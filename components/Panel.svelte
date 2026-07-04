@@ -3,6 +3,7 @@
   import GroupCard from './GroupCard.svelte';
   import { scrollToFile } from './scroll-to-file';
   import { enableReviewMode, disableReviewMode } from './review-mode';
+  import { sortGroupsByImportance } from '../lib/grouping/sort';
   import type { Group } from '../lib/grouping/types';
 
   const result = $derived(panelState.result);
@@ -10,6 +11,8 @@
   const groupsById = $derived(
     new Map<string, Group>((result?.groups ?? []).map((g) => [g.id, g])),
   );
+
+  const sortedGroups = $derived(sortGroupsByImportance(result?.groups ?? []));
 
   let showDebug = $state(false);
 
@@ -215,7 +218,7 @@
 
           <div class="space-y-2">
             <h2 class="text-xs font-semibold uppercase text-gray-500">Groups</h2>
-            {#each result.groups as group (group.id)}
+            {#each sortedGroups as group (group.id)}
               <GroupCard {group} defaultOpen={group.label !== 'mechanical'} />
             {/each}
           </div>

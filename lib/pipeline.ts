@@ -61,6 +61,7 @@ function mechanicalGroup(mechanical: ClassifiedFile[]): Group {
     id: MECHANICAL_GROUP_ID,
     title: 'Mechanical / low-signal',
     label: 'mechanical',
+    importance: 'low',
     rationale: 'Lockfiles, generated code, renames, and binaries — skim or skip.',
     files: mechanical.map((c) => c.file.path),
   };

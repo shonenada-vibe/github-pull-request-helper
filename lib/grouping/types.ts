@@ -13,11 +13,18 @@ export type InterestingLabel = (typeof INTERESTING_LABELS)[number];
 /** Any label, including the pipeline-added `mechanical` bucket. */
 export type GroupLabel = InterestingLabel | 'mechanical';
 
+export const IMPORTANCE_LEVELS = ['high', 'medium', 'low'] as const;
+
+/** How much reviewer scrutiny a group deserves. */
+export type Importance = (typeof IMPORTANCE_LEVELS)[number];
+
 export interface Group {
   /** Stable id referenced by the reading order. */
   id: string;
   title: string;
   label: GroupLabel;
+  /** Optional for results cached before importance existed. */
+  importance?: Importance;
   /** One-line reason this group exists / what to look for. */
   rationale: string;
   /** Paths of the files in this group. */

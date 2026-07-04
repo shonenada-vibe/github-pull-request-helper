@@ -1,4 +1,5 @@
 import type { GroupingResult, Group } from '../lib/grouping/types';
+import { sortGroupsByImportance } from '../lib/grouping/sort';
 
 /**
  * Review Mode rearranges GitHub's own "Files changed" DOM: each group from the
@@ -43,7 +44,10 @@ function fileRoot(path: string): HTMLElement | null {
   return null;
 }
 
-/** Groups in reading order, then any groups the reading order skipped. */
+/**
+ * Groups in reading order, then any groups the reading order skipped,
+ * most important first.
+ */
 function orderedGroups(
   result: GroupingResult,
 ): Array<{ group: Group; reason?: string }> {
@@ -57,7 +61,7 @@ function orderedGroups(
       seen.add(group.id);
     }
   }
-  for (const group of result.groups) {
+  for (const group of sortGroupsByImportance(result.groups)) {
     if (!seen.has(group.id)) out.push({ group });
   }
   return out;
@@ -134,7 +138,10 @@ function buildHeader(
     'padding:1px 8px;border-radius:999px;font-size:12px;font-weight:500;' +
     'background:var(--bgColor-neutral-muted, #eff1f3);' +
     'color:var(--fgColor-muted, #57606a);';
-  badge.textContent = group.label;
+  badge.textContent =
+    group.importance && group.label !== 'mechanical'
+      ? `${group.label} · ${group.importance}`
+      : group.label;
   title.appendChild(badge);
   header.appendChild(title);
 
