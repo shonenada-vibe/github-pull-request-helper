@@ -28,7 +28,7 @@ import { runAnalysis } from '../lib/pipeline';
 
 const RAW_SNIPPET_LIMIT = 2000;
 
-function toErrorResponse(err: unknown): AnalyzeResponse {
+function toErrorResponse(err: unknown): Extract<AnalyzeResponse, { type: 'ERROR' }> {
   let kind: ErrorKind = 'unknown';
   let detail: string | undefined;
   if (err instanceof GithubApiError) {
@@ -109,6 +109,7 @@ export default defineBackground(() => {
     }
 
     const started = Date.now();
+    const trace: string[] = [];
     try {
       const { result, fromCache, cachedAt, diagnostics } = await runAnalysis(
         {
@@ -124,6 +125,7 @@ export default defineBackground(() => {
           requestGrouping: (args) => requestGroupingForSettings(args),
           getCache: getCachedGrouping,
           setCache: setCachedGrouping,
+          trace: (line) => trace.push(line),
         },
       );
       return {
@@ -135,10 +137,14 @@ export default defineBackground(() => {
           fromCache,
           cachedAt,
           durationMs: Date.now() - started,
+          trace,
         },
       };
     } catch (err) {
-      return toErrorResponse(err);
+      trace.push(
+        `failed after ${Date.now() - started}ms: ${err instanceof Error ? err.name : typeof err}`,
+      );
+      return { ...toErrorResponse(err), debug: { trace } };
     }
   });
 });

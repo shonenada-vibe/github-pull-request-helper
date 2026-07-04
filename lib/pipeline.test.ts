@@ -115,6 +115,39 @@ describe('runAnalysis', () => {
     expect(deps.fetchPRHead).not.toHaveBeenCalled();
   });
 
+  it('emits a per-phase trace covering fetch, partition, LLM, and cache', async () => {
+    const lines: string[] = [];
+    const deps = makeDeps({ trace: (line) => lines.push(line) });
+    await runAnalysis({ owner: 'o', repo: 'r', number: 1, settings }, deps);
+
+    const joined = lines.join('\n');
+    expect(joined).toContain('settings: provider=anthropic');
+    expect(joined).toMatch(/head lookup in \d+ms/);
+    expect(joined).toContain('cache miss');
+    expect(joined).toMatch(/PR fetch in \d+ms/);
+    expect(joined).toContain('partition: 1 interesting, 1 mechanical');
+    expect(joined).toMatch(/chars system, \d+ chars user/);
+    expect(joined).toMatch(/anthropic request in \d+ms/);
+    expect(joined).toContain('cached the result');
+  });
+
+  it('traces a cache hit without fetching the diff', async () => {
+    const lines: string[] = [];
+    const cached = {
+      result: { ...llmResponse, hasMechanical: false },
+      savedAt: Date.now(),
+      totalFiles: 2,
+      interesting: 1,
+      mechanical: 1,
+    };
+    const deps = makeDeps({
+      getCache: vi.fn(async () => cached),
+      trace: (line) => lines.push(line),
+    });
+    await runAnalysis({ owner: 'o', repo: 'r', number: 1, settings }, deps);
+    expect(lines.join('\n')).toContain('cache hit (saved ');
+  });
+
   it('includes the language in the system prompt and the cache key', async () => {
     const deps = makeDeps();
     await runAnalysis(

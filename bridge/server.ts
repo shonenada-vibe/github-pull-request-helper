@@ -96,11 +96,17 @@ const server = createServer(async (req, res) => {
     };
     const model = body.model || 'claude';
     const prompt = composePrompt(body.messages ?? []);
-    console.log(`[bridge] ${model}: analyzing (${prompt.length} chars)…`);
+    const { argv } = commandFor(model, prompt);
+    console.log(
+      `[bridge] ${model}: analyzing (${prompt.length} chars) via "${argv.slice(0, 3).join(' ')}"…`,
+    );
     const started = Date.now();
     const stdout = await runAgent(model, prompt);
+    console.log(`[bridge] ${model}: agent wrote ${stdout.length} chars of stdout`);
     const content = extractGroupingJson(stdout);
-    console.log(`[bridge] ${model}: done in ${Date.now() - started}ms`);
+    console.log(
+      `[bridge] ${model}: extracted ${content.length} chars of grouping JSON in ${Date.now() - started}ms`,
+    );
     send(res, 200, { choices: [{ message: { role: 'assistant', content } }] });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

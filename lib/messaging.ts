@@ -23,6 +23,8 @@ export interface DebugInfo {
   /** When fromCache, the timestamp the entry was originally saved. */
   cachedAt?: number;
   durationMs: number;
+  /** Per-phase trace lines from the background pipeline. */
+  trace?: string[];
 }
 
 export type AnalyzeResponse =

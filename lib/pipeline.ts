@@ -22,6 +22,8 @@ export interface AnalysisDeps {
   requestGrouping: (args: RequestGroupingArgs) => Promise<GroupingResponse>;
   getCache: (key: string) => Promise<CachedAnalysis | undefined>;
   setCache: (key: string, entry: CachedAnalysis) => Promise<void>;
+  /** Optional per-phase trace sink for the debug log. */
+  trace?: (line: string) => void;
 }
 
 export interface RunAnalysisParams {
@@ -98,6 +100,13 @@ export async function runAnalysis(
 ): Promise<AnalysisOutcome> {
   const coords = { owner, repo, number, token: settings.githubToken };
   const model = modelLabel(settings);
+  const trace = deps.trace ?? (() => {});
+  const timed = async <T>(label: string, work: Promise<T>): Promise<T> => {
+    const started = Date.now();
+    const value = await work;
+    trace(`${label} in ${Date.now() - started}ms`);
+    return value;
+  };
   const keyFor = (sha: string) =>
     groupingCacheKey({
       provider: settings.provider,
@@ -106,11 +115,21 @@ export async function runAnalysis(
       sha,
     });
 
+  trace(
+    `settings: provider=${settings.provider}, model=${model}, lang=${settings.language}`,
+  );
+
   if (!force) {
     // One cheap request for the head SHA is enough to serve a cache hit —
     // no diff download, no LLM call.
-    const { headSha } = await deps.fetchPRHead(coords);
+    const { headSha } = await timed('head lookup', deps.fetchPRHead(coords));
+    trace(`head sha ${headSha.slice(0, 12)}`);
     const cached = await deps.getCache(keyFor(headSha));
+    trace(
+      cached
+        ? `cache hit (saved ${new Date(cached.savedAt).toLocaleString()})`
+        : 'cache miss',
+    );
     if (cached) {
       return {
         result: cached.result,
@@ -128,8 +147,14 @@ export async function runAnalysis(
     }
   }
 
-  const pr = await deps.fetchPR(coords);
+  if (force) trace('cache skipped (forced refresh)');
+
+  const pr = await timed('PR fetch', deps.fetchPR(coords));
+  trace(
+    `PR "${pr.title}" — ${pr.files.length} files, ${pr.commitMessages.length} commits, head ${pr.headSha.slice(0, 12)}`,
+  );
   const { interesting, mechanical } = partitionFiles(pr.files);
+  trace(`partition: ${interesting.length} interesting, ${mechanical.length} mechanical`);
   const baseDiagnostics = {
     provider: settings.provider,
     model,
@@ -141,6 +166,7 @@ export async function runAnalysis(
   let response: GroupingResponse;
   let usedLlm = false;
   if (interesting.length === 0) {
+    trace('all files mechanical — skipping the LLM');
     // Nothing worth an LLM pass — everything is mechanical.
     response = {
       intent:
@@ -151,12 +177,21 @@ export async function runAnalysis(
     };
   } else {
     usedLlm = true;
-    response = await deps.requestGrouping({
-      settings,
-      system: buildSystemPrompt(settings.language),
-      userContent: buildUserContent(pr, interesting),
-      pr: { owner, repo, number },
-    });
+    const system = buildSystemPrompt(settings.language);
+    const userContent = buildUserContent(pr, interesting);
+    trace(`prompt: ${system.length} chars system, ${userContent.length} chars user`);
+    response = await timed(
+      `${settings.provider} request`,
+      deps.requestGrouping({
+        settings,
+        system,
+        userContent,
+        pr: { owner, repo, number },
+      }),
+    );
+    trace(
+      `response: ${response.groups.length} groups, ${response.readingOrder.length} reading steps`,
+    );
   }
 
   const result = finalize(response, mechanical);
@@ -167,5 +202,6 @@ export async function runAnalysis(
     interesting: interesting.length,
     mechanical: mechanical.length,
   });
+  trace('cached the result');
   return { result, fromCache: false, diagnostics: { ...baseDiagnostics, usedLlm } };
 }

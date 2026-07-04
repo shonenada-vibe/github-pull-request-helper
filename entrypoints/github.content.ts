@@ -90,6 +90,7 @@ export default defineContentScript({
             `${d.totalFiles} files (${d.interesting} interesting, ${d.mechanical} mechanical), ` +
             `${d.usedLlm ? 'LLM' : 'no LLM'}${cacheNote}.`,
         );
+        for (const line of d.trace ?? []) pushLog(`· ${line}`);
         pushLog(`Rendered ${res.result.groups.length} groups.`);
         void maybeAutoReview(loc, res.result);
       } else {
@@ -98,6 +99,7 @@ export default defineContentScript({
         panelState.errorKind = res.kind;
         panelState.detail = res.detail;
         pushLog(`Error (${res.kind}) after ${roundTrip}ms: ${res.error}`);
+        for (const line of res.debug?.trace ?? []) pushLog(`· ${line}`);
         if (res.detail) pushLog('Raw model output captured below.');
       }
     }
