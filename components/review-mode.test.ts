@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   enableReviewMode,
   disableReviewMode,
@@ -91,16 +91,52 @@ describe('review mode', () => {
     );
   });
 
-  it('gives headers a 48px top margin and distinct colors per group', () => {
+  it('wraps each group in a bordered section, spaced 48px except the first', () => {
     enableReviewMode(result);
-    const headers = [
-      ...document.querySelectorAll<HTMLElement>('[data-github-differ="group-header"]'),
+    const wrappers = [
+      ...document.querySelectorAll<HTMLElement>('[data-github-differ="group"]'),
     ];
-    const styles = headers.map((el) => el.getAttribute('style') ?? '');
-    expect(styles[0]).toContain('48px');
+    expect(wrappers).toHaveLength(3);
+    const styles = wrappers.map((el) => el.getAttribute('style') ?? '');
+    expect(styles[0]).not.toContain('48px'); // First group hugs the top.
+    expect(styles[1]).toContain('48px');
+    expect(styles[2]).toContain('48px');
+    for (const style of styles) expect(style).toContain('border');
     // The rotating palette makes adjacent groups visually distinct.
-    expect(styles[0]).not.toBe(styles[1]);
     expect(styles[1]).not.toBe(styles[2]);
+
+    // Each wrapper contains its header followed by its files.
+    const first = wrappers[0]!;
+    expect(
+      first.querySelector('[data-github-differ="group-header"]'),
+    ).toBeTruthy();
+    expect(first.querySelector('[data-path="src/limiter.ts"]')).toBeTruthy();
+  });
+
+  it('adds a left side nav that jumps to groups, removed on disable', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    enableReviewMode(result);
+
+    const nav = document.querySelector<HTMLElement>(
+      '[data-github-differ="side-nav"]',
+    )!;
+    expect(nav).toBeTruthy();
+    expect(nav.getAttribute('style')).toContain('left: 16px');
+    const buttons = [...nav.querySelectorAll('button')];
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      '1. Limiter core',
+      '2. Tests',
+      '3. Mechanical / low-signal',
+    ]);
+
+    buttons[1]!.click();
+    const testsWrapper = [
+      ...document.querySelectorAll('[data-github-differ="group"]'),
+    ][1]!;
+    expect(testsWrapper.scrollIntoView).toHaveBeenCalled();
+
+    disableReviewMode();
+    expect(document.querySelector('[data-github-differ="side-nav"]')).toBeNull();
   });
 
   it('restores the exact original order on disable', () => {

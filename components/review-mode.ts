@@ -91,16 +91,37 @@ const HEADER_COLORS = [
   },
 ];
 
+type HeaderColor = (typeof HEADER_COLORS)[number];
+
+function colorFor(position: number): HeaderColor {
+  return HEADER_COLORS[(position - 1) % HEADER_COLORS.length]!;
+}
+
 /**
- * Injected into the page (outside our shadow root), so styling is inline,
- * using GitHub's CSS variables with light-mode fallbacks.
+ * Bordered container holding a group's header and its file diffs. Injected
+ * into the page (outside our shadow root), so styling is inline, using
+ * GitHub's CSS variables with light-mode fallbacks.
  */
-function buildHeader(group: Group, position: number, reason?: string): HTMLElement {
-  const color = HEADER_COLORS[(position - 1) % HEADER_COLORS.length]!;
+function buildGroupWrapper(position: number, color: HeaderColor): HTMLElement {
+  const wrapper = document.createElement('section');
+  wrapper.setAttribute('data-github-differ', 'group');
+  wrapper.style.cssText =
+    // Breathing room between groups, but not above the first one.
+    `margin:${position === 1 ? '0' : '48px'} 0 16px;padding:10px;` +
+    `border:2px solid ${color.border};border-radius:8px;`;
+  return wrapper;
+}
+
+function buildHeader(
+  group: Group,
+  position: number,
+  color: HeaderColor,
+  reason?: string,
+): HTMLElement {
   const header = document.createElement('div');
   header.setAttribute('data-github-differ', 'group-header');
   header.style.cssText =
-    'margin:48px 0 12px;padding:10px 14px;' +
+    'margin:0 0 12px;padding:10px 14px;' +
     `border:1px solid ${color.border};` +
     `border-radius:6px;background:${color.bg};` +
     'color:var(--fgColor-default, #1f2328);font-size:14px;line-height:1.4;';
@@ -122,6 +143,54 @@ function buildHeader(group: Group, position: number, reason?: string): HTMLEleme
   sub.textContent = reason ? `${group.rationale} — ${reason}` : group.rationale;
   header.appendChild(sub);
   return header;
+}
+
+/** Fixed nav on the left edge with one jump entry per group. */
+function buildSideNav(
+  entries: Array<{ position: number; group: Group; wrapper: HTMLElement }>,
+): HTMLElement {
+  const nav = document.createElement('nav');
+  nav.setAttribute('data-github-differ', 'side-nav');
+  nav.setAttribute('aria-label', 'Review groups');
+  nav.style.cssText =
+    'position:fixed;left:16px;top:50%;transform:translateY(-50%);z-index:9998;' +
+    'max-width:240px;max-height:60vh;overflow:auto;padding:8px;' +
+    'border:1px solid var(--borderColor-default, #d1d9e0);border-radius:8px;' +
+    'background:var(--bgColor-default, #ffffff);' +
+    'color:var(--fgColor-default, #1f2328);' +
+    'box-shadow:0 3px 12px rgba(0,0,0,0.15);font-size:12px;line-height:1.5;';
+
+  const heading = document.createElement('div');
+  heading.style.cssText =
+    'margin:0 0 4px;padding:0 6px;font-weight:600;text-transform:uppercase;' +
+    'font-size:11px;color:var(--fgColor-muted, #57606a);';
+  heading.textContent = 'Groups';
+  nav.appendChild(heading);
+
+  for (const { position, group, wrapper } of entries) {
+    const color = colorFor(position);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = group.rationale;
+    button.style.cssText =
+      'display:flex;align-items:center;gap:6px;width:100%;padding:3px 6px;' +
+      'border:0;border-radius:4px;background:transparent;cursor:pointer;' +
+      'color:inherit;font:inherit;text-align:left;';
+    const dot = document.createElement('span');
+    dot.style.cssText =
+      `flex:none;width:8px;height:8px;border-radius:999px;background:${color.border};`;
+    button.appendChild(dot);
+    const label = document.createElement('span');
+    label.style.cssText =
+      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.textContent = `${position}. ${group.title}`;
+    button.appendChild(label);
+    button.addEventListener('click', () => {
+      wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    nav.appendChild(button);
+  }
+  return nav;
 }
 
 function firstInDocument(els: Element[]): Element {
@@ -154,20 +223,29 @@ export function enableReviewMode(result: GroupingResult): boolean {
 
   const moved: MovedFile[] = [];
   const injected: ChildNode[] = [anchorMarker];
+  const navEntries: Array<{ position: number; group: Group; wrapper: HTMLElement }> =
+    [];
   let position = 0;
   for (const { group, reason, els } of resolved) {
     if (els.length === 0) continue;
     position += 1;
-    const header = buildHeader(group, position, reason);
-    parent.insertBefore(header, anchorMarker);
-    injected.push(header);
+    const color = colorFor(position);
+    const wrapper = buildGroupWrapper(position, color);
+    wrapper.appendChild(buildHeader(group, position, color, reason));
+    parent.insertBefore(wrapper, anchorMarker);
+    injected.push(wrapper);
+    navEntries.push({ position, group, wrapper });
     for (const el of els) {
       const placeholder = document.createComment('github-differ:slot');
       el.replaceWith(placeholder);
-      parent.insertBefore(el, anchorMarker);
+      wrapper.appendChild(el);
       moved.push({ el, placeholder });
     }
   }
+
+  const sideNav = buildSideNav(navEntries);
+  document.body.appendChild(sideNav);
+  injected.push(sideNav);
 
   active = { moved, injected };
   return true;
