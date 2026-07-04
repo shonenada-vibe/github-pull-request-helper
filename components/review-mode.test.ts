@@ -122,7 +122,7 @@ describe('review mode', () => {
     )!;
     expect(nav).toBeTruthy();
     expect(nav.getAttribute('style')).toContain('left: 16px');
-    const buttons = [...nav.querySelectorAll('button')];
+    const buttons = [...nav.querySelectorAll('button:not([aria-label])')];
     expect(buttons.map((b) => b.textContent)).toEqual([
       '1. Limiter core',
       '2. Tests',
@@ -137,6 +137,29 @@ describe('review mode', () => {
 
     disableReviewMode();
     expect(document.querySelector('[data-github-differ="side-nav"]')).toBeNull();
+  });
+
+  it('collapses the side nav to a pill and remembers it across re-enables', () => {
+    enableReviewMode(result);
+    const nav = () =>
+      document.querySelector<HTMLElement>('[data-github-differ="side-nav"]')!;
+    const byLabel = (label: string) =>
+      nav().querySelector<HTMLElement>(`[aria-label="${label}"]`)!;
+    const list = () => byLabel('Hide groups navigation').closest('div')!
+      .parentElement as HTMLElement;
+
+    expect(list().style.display).toBe('block');
+    byLabel('Hide groups navigation').click();
+    expect(list().style.display).toBe('none');
+    expect(byLabel('Show groups navigation').style.display).toBe('block');
+
+    // The preference sticks when review mode is toggled off and on again.
+    disableReviewMode();
+    enableReviewMode(result);
+    expect(byLabel('Show groups navigation').style.display).toBe('block');
+
+    byLabel('Show groups navigation').click();
+    expect(list().style.display).toBe('block');
   });
 
   it('restores the exact original order on disable', () => {
