@@ -2,11 +2,19 @@
   import { untrack } from 'svelte';
   import type { Group } from '../lib/grouping/types';
   import { scrollToFile } from './scroll-to-file';
+  import { scrollToGroup } from './review-mode';
 
   let { group, defaultOpen = true }: { group: Group; defaultOpen?: boolean } =
     $props();
 
   let open = $state(untrack(() => defaultOpen));
+
+  /** Prefer the group's Review-Mode section; fall back to its first file. */
+  function jumpToFiles() {
+    if (scrollToGroup(group.id)) return;
+    const first = group.files[0];
+    if (first) scrollToFile(first);
+  }
 
   const labelColors: Record<string, string> = {
     behavioral: 'bg-amber-100 text-amber-800',
@@ -25,13 +33,24 @@
 </script>
 
 <div class="rounded-md border border-gray-200 bg-white">
-  <button
-    type="button"
-    class="flex w-full items-center gap-2 px-3 py-2 text-left"
-    onclick={() => (open = !open)}
-  >
-    <span class="text-gray-400">{open ? '▾' : '▸'}</span>
-    <span class="font-medium text-gray-900">{group.title}</span>
+  <div class="flex w-full items-center gap-2 px-3 py-2">
+    <button
+      type="button"
+      class="text-gray-400 hover:text-gray-600"
+      title={open ? 'Collapse' : 'Expand'}
+      aria-label={open ? 'Collapse group' : 'Expand group'}
+      onclick={() => (open = !open)}
+    >
+      {open ? '▾' : '▸'}
+    </button>
+    <button
+      type="button"
+      class="text-left font-medium text-gray-900 hover:text-sky-700 hover:underline"
+      title="Jump to this group's files"
+      onclick={jumpToFiles}
+    >
+      {group.title}
+    </button>
     {#if group.importance && group.label !== 'mechanical'}
       <span
         class="rounded-full px-2 py-0.5 text-xs font-medium {importanceColors[
@@ -50,7 +69,7 @@
     >
       {group.label}
     </span>
-  </button>
+  </div>
 
   {#if open}
     <div class="border-t border-gray-100 px-3 py-2">

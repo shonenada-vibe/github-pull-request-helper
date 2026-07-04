@@ -175,99 +175,18 @@ function buildHeader(
   return header;
 }
 
-/** User preference for the side nav; survives re-enables within the session. */
-let sideNavCollapsed = false;
-
-/** Fixed nav on the left edge with one jump entry per group; collapsible. */
-function buildSideNav(
-  entries: Array<{ position: number; group: Group; wrapper: HTMLElement }>,
-): HTMLElement {
-  const nav = document.createElement('nav');
-  nav.setAttribute('data-github-differ', 'side-nav');
-  nav.setAttribute('aria-label', 'Review groups');
-  nav.style.cssText =
-    'position:fixed;left:16px;top:50%;transform:translateY(-50%);z-index:9998;' +
-    'max-width:240px;max-height:60vh;overflow:auto;' +
-    'border:1px solid var(--borderColor-default, #d1d9e0);border-radius:8px;' +
-    'background:var(--bgColor-default, #ffffff);' +
-    'color:var(--fgColor-default, #1f2328);' +
-    'box-shadow:0 3px 12px rgba(0,0,0,0.15);font-size:12px;line-height:1.5;';
-
-  const list = document.createElement('div');
-  list.style.cssText = 'padding:8px;';
-
-  const heading = document.createElement('div');
-  heading.style.cssText =
-    'display:flex;align-items:center;gap:8px;margin:0 0 4px;padding:0 6px;';
-  const headingLabel = document.createElement('span');
-  headingLabel.style.cssText =
-    'flex:1;font-weight:600;text-transform:uppercase;font-size:11px;' +
-    'color:var(--fgColor-muted, #57606a);';
-  headingLabel.textContent = 'Groups';
-  heading.appendChild(headingLabel);
-
-  const collapseBtn = document.createElement('button');
-  collapseBtn.type = 'button';
-  collapseBtn.setAttribute('aria-label', 'Hide groups navigation');
-  collapseBtn.title = 'Hide';
-  collapseBtn.textContent = '«';
-  collapseBtn.style.cssText =
-    'border:0;background:transparent;cursor:pointer;padding:0 4px;' +
-    'color:var(--fgColor-muted, #57606a);font:inherit;';
-  heading.appendChild(collapseBtn);
-  list.appendChild(heading);
-
-  const expandBtn = document.createElement('button');
-  expandBtn.type = 'button';
-  expandBtn.setAttribute('aria-label', 'Show groups navigation');
-  expandBtn.title = 'Show review groups';
-  expandBtn.textContent = '»';
-  expandBtn.style.cssText =
-    'display:none;border:0;background:transparent;cursor:pointer;' +
-    'padding:6px 10px;color:var(--fgColor-muted, #57606a);font:inherit;' +
-    'font-weight:600;';
-
-  function applyCollapsed() {
-    list.style.display = sideNavCollapsed ? 'none' : 'block';
-    expandBtn.style.display = sideNavCollapsed ? 'block' : 'none';
-  }
-  collapseBtn.addEventListener('click', () => {
-    sideNavCollapsed = true;
-    applyCollapsed();
-  });
-  expandBtn.addEventListener('click', () => {
-    sideNavCollapsed = false;
-    applyCollapsed();
-  });
-
-  for (const { position, group, wrapper } of entries) {
-    const color = colorFor(position);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.title = group.rationale;
-    button.style.cssText =
-      'display:flex;align-items:center;gap:6px;width:100%;padding:3px 6px;' +
-      'border:0;border-radius:4px;background:transparent;cursor:pointer;' +
-      'color:inherit;font:inherit;text-align:left;';
-    const dot = document.createElement('span');
-    dot.style.cssText =
-      `flex:none;width:8px;height:8px;border-radius:999px;background:${color.border};`;
-    button.appendChild(dot);
-    const label = document.createElement('span');
-    label.style.cssText =
-      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    label.textContent = `${position}. ${group.title}`;
-    button.appendChild(label);
-    button.addEventListener('click', () => {
-      wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    list.appendChild(button);
-  }
-
-  nav.appendChild(list);
-  nav.appendChild(expandBtn);
-  applyCollapsed();
-  return nav;
+/**
+ * Scroll to a group's Review-Mode section. Returns false when Review Mode is
+ * off or the group has no section on the page (caller falls back to a file).
+ */
+export function scrollToGroup(groupId: string): boolean {
+  if (!active) return false;
+  const wrapper = document.querySelector(
+    `[data-github-differ="group"][data-group-id="${cssEscape(groupId)}"]`,
+  );
+  if (!wrapper) return false;
+  wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return true;
 }
 
 function firstInDocument(els: Element[]): Element {
@@ -300,18 +219,16 @@ export function enableReviewMode(result: GroupingResult): boolean {
 
   const moved: MovedFile[] = [];
   const injected: ChildNode[] = [anchorMarker];
-  const navEntries: Array<{ position: number; group: Group; wrapper: HTMLElement }> =
-    [];
   let position = 0;
   for (const { group, reason, els } of resolved) {
     if (els.length === 0) continue;
     position += 1;
     const color = colorFor(position);
     const wrapper = buildGroupWrapper(position, color);
+    wrapper.setAttribute('data-group-id', group.id);
     wrapper.appendChild(buildHeader(group, position, color, reason));
     parent.insertBefore(wrapper, anchorMarker);
     injected.push(wrapper);
-    navEntries.push({ position, group, wrapper });
     for (const el of els) {
       const placeholder = document.createComment('github-differ:slot');
       el.replaceWith(placeholder);
@@ -319,10 +236,6 @@ export function enableReviewMode(result: GroupingResult): boolean {
       moved.push({ el, placeholder });
     }
   }
-
-  const sideNav = buildSideNav(navEntries);
-  document.body.appendChild(sideNav);
-  injected.push(sideNav);
 
   active = { moved, injected };
   return true;

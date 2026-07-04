@@ -4,6 +4,7 @@ import {
   enableReviewMode,
   disableReviewMode,
   isReviewModeActive,
+  scrollToGroup,
 } from './review-mode';
 import type { GroupingResult } from '../lib/grouping/types';
 
@@ -121,55 +122,26 @@ describe('review mode', () => {
     expect(first.querySelector('[data-path="src/limiter.ts"]')).toBeTruthy();
   });
 
-  it('adds a left side nav that jumps to groups, removed on disable', () => {
-    Element.prototype.scrollIntoView = vi.fn();
+  it('does not inject a side nav (removed feature)', () => {
     enableReviewMode(result);
-
-    const nav = document.querySelector<HTMLElement>(
-      '[data-github-differ="side-nav"]',
-    )!;
-    expect(nav).toBeTruthy();
-    expect(nav.getAttribute('style')).toContain('left: 16px');
-    const buttons = [
-      ...nav.querySelectorAll<HTMLButtonElement>('button:not([aria-label])'),
-    ];
-    expect(buttons.map((b) => b.textContent)).toEqual([
-      '1. Limiter core',
-      '2. Tests',
-      '3. Mechanical / low-signal',
-    ]);
-
-    buttons[1]!.click();
-    const testsWrapper = [
-      ...document.querySelectorAll('[data-github-differ="group"]'),
-    ][1]!;
-    expect(testsWrapper.scrollIntoView).toHaveBeenCalled();
-
-    disableReviewMode();
     expect(document.querySelector('[data-github-differ="side-nav"]')).toBeNull();
   });
 
-  it('collapses the side nav to a pill and remembers it across re-enables', () => {
+  it('scrollToGroup jumps to the group section while active, else reports false', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+
+    expect(scrollToGroup('core')).toBe(false); // Inactive.
+
     enableReviewMode(result);
-    const nav = () =>
-      document.querySelector<HTMLElement>('[data-github-differ="side-nav"]')!;
-    const byLabel = (label: string) =>
-      nav().querySelector<HTMLElement>(`[aria-label="${label}"]`)!;
-    const list = () => byLabel('Hide groups navigation').closest('div')!
-      .parentElement as HTMLElement;
+    expect(scrollToGroup('core')).toBe(true);
+    const coreWrapper = document.querySelector(
+      '[data-github-differ="group"][data-group-id="core"]',
+    )!;
+    expect(coreWrapper.scrollIntoView).toHaveBeenCalled();
+    expect(scrollToGroup('ghost')).toBe(false); // Unknown group id.
 
-    expect(list().style.display).toBe('block');
-    byLabel('Hide groups navigation').click();
-    expect(list().style.display).toBe('none');
-    expect(byLabel('Show groups navigation').style.display).toBe('block');
-
-    // The preference sticks when review mode is toggled off and on again.
     disableReviewMode();
-    enableReviewMode(result);
-    expect(byLabel('Show groups navigation').style.display).toBe('block');
-
-    byLabel('Show groups navigation').click();
-    expect(list().style.display).toBe('block');
+    expect(scrollToGroup('core')).toBe(false);
   });
 
   it('restores the exact original order on disable', () => {

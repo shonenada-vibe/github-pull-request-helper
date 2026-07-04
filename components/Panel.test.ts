@@ -219,6 +219,19 @@ describe('Panel', () => {
     expect(aside.style.height).toBe('580px'); // 480 fallback + 100px downward drag.
   });
 
+  it('jumps to the group files when a group name is clicked', async () => {
+    document.body.innerHTML += `<div data-path="src/limiter.ts">diff</div>`;
+    panelState.visible = true;
+    panelState.status = 'ready';
+    panelState.result = result;
+
+    const { getAllByTitle } = render(Panel);
+    // First card is g1 (importance sort puts mechanical last).
+    await fireEvent.click(getAllByTitle("Jump to this group's files")[0]!);
+    const target = document.querySelector('[data-path="src/limiter.ts"]')!;
+    expect(target.scrollIntoView).toHaveBeenCalled();
+  });
+
   it('jumps to a file when a reading-order step is clicked', async () => {
     document.body.innerHTML += `<div data-path="src/limiter.ts">diff</div>`;
     panelState.visible = true;
