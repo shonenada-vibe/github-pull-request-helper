@@ -22,6 +22,10 @@ export interface PanelState {
   debug?: DebugInfo;
   /** Timestamped debug log lines, newest last. */
   logs: string[];
+  /** Latest live progress line while an analysis is running. */
+  progress?: string;
+  /** When the current loading state started (for the elapsed counter). */
+  loadingSince?: number;
   /** Set by the content script; called when the user clicks "Refresh". */
   onRefresh?: () => void;
   /** Set by the content script; starts analysis from the idle state. */
@@ -59,4 +63,6 @@ export function resetForLoading(): void {
   panelState.detail = undefined;
   panelState.debug = undefined;
   panelState.logs = [];
+  panelState.progress = undefined;
+  panelState.loadingSince = Date.now();
 }

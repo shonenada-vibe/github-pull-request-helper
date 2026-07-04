@@ -22,6 +22,8 @@ function reset() {
   panelState.onRefresh = undefined;
   panelState.onAnalyze = undefined;
   panelState.onOpenOptions = undefined;
+  panelState.progress = undefined;
+  panelState.loadingSince = undefined;
 }
 
 beforeEach(() => {
@@ -69,11 +71,14 @@ describe('Panel', () => {
     expect(onAnalyze).toHaveBeenCalledOnce();
   });
 
-  it('shows a loading state', () => {
+  it('shows a loading state with elapsed time and the live progress line', () => {
     panelState.visible = true;
     panelState.status = 'loading';
+    panelState.loadingSince = Date.now() - 5000;
+    panelState.progress = 'PR fetch in 890ms';
     const { getByText } = render(Panel);
-    expect(getByText(/Analyzing pull request/i)).toBeTruthy();
+    expect(getByText(/Analyzing pull request… \d+s/i)).toBeTruthy();
+    expect(getByText('PR fetch in 890ms')).toBeTruthy();
   });
 
   it('shows the settings CTA for missing credentials and wires the callback', async () => {

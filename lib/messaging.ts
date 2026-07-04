@@ -52,7 +52,29 @@ export interface OpenOptionsRequest {
   type: 'OPEN_OPTIONS';
 }
 
-export type Message = AnalyzeRequest | OpenOptionsRequest;
+/** Background -> content script: a pipeline phase finished (live progress). */
+export interface ProgressEvent {
+  type: 'PROGRESS';
+  line: string;
+}
+
+export type Message = AnalyzeRequest | OpenOptionsRequest | ProgressEvent;
+
+export function isProgressEvent(value: unknown): value is ProgressEvent {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { type?: unknown }).type === 'PROGRESS' &&
+    typeof (value as { line?: unknown }).line === 'string'
+  );
+}
+
+/** Push a live progress line to the tab that requested the analysis. */
+export function sendProgress(tabId: number, line: string): void {
+  void browser.tabs.sendMessage(tabId, { type: 'PROGRESS', line }).catch(() => {
+    // The tab may have navigated away; progress is best-effort.
+  });
+}
 
 /** Typed send from the content script. */
 export function sendAnalyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
@@ -72,14 +94,19 @@ export function isOpenOptionsRequest(value: unknown): value is OpenOptionsReques
   );
 }
 
+/** The subset of MessageSender the analyze handler needs. */
+export interface AnalyzeSender {
+  tab?: { id?: number };
+}
+
 /** Register the background handler. Returns nothing; call once in the worker. */
 export function onAnalyze(
-  handler: (req: AnalyzeRequest) => Promise<AnalyzeResponse>,
+  handler: (req: AnalyzeRequest, sender: AnalyzeSender) => Promise<AnalyzeResponse>,
 ): void {
   browser.runtime.onMessage.addListener(
-    (message: unknown, _sender, sendResponse: (r: AnalyzeResponse) => void) => {
+    (message: unknown, sender, sendResponse: (r: AnalyzeResponse) => void) => {
       if (!isAnalyzeRequest(message)) return false;
-      handler(message)
+      handler(message, sender as AnalyzeSender)
         .then(sendResponse)
         .catch((err) =>
           sendResponse({ type: 'ERROR', error: String(err), kind: 'unknown' }),

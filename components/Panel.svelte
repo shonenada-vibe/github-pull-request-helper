@@ -55,6 +55,17 @@
     down.preventDefault();
   }
 
+  // Ticks once a second while loading so the elapsed counter stays live.
+  let now = $state(Date.now());
+  $effect(() => {
+    if (panelState.status !== 'loading') return;
+    const id = setInterval(() => (now = Date.now()), 1000);
+    return () => clearInterval(id);
+  });
+  const elapsedSeconds = $derived(
+    Math.max(0, Math.floor((now - (panelState.loadingSince ?? now)) / 1000)),
+  );
+
   const statusDot = $derived(
     panelState.status === 'loading'
       ? 'animate-pulse bg-amber-500'
@@ -172,7 +183,14 @@
           </button>
         </div>
       {:else if panelState.status === 'loading'}
-        <p class="animate-pulse text-sm text-gray-500">Analyzing pull request…</p>
+        <div class="space-y-2">
+          <p class="animate-pulse text-sm text-gray-500">
+            Analyzing pull request… {elapsedSeconds}s
+          </p>
+          {#if panelState.progress}
+            <p class="font-mono text-xs text-gray-400">{panelState.progress}</p>
+          {/if}
+        </div>
       {:else if panelState.status === 'error'}
         <div class="space-y-3">
           <p class="text-sm text-red-700">{panelState.error}</p>

@@ -3,6 +3,7 @@ import { browser } from 'wxt/browser';
 import {
   onAnalyze,
   isOpenOptionsRequest,
+  sendProgress,
   type AnalyzeResponse,
   type ErrorKind,
 } from '../lib/messaging';
@@ -87,7 +88,7 @@ export default defineBackground(() => {
     return false;
   });
 
-  onAnalyze(async (req): Promise<AnalyzeResponse> => {
+  onAnalyze(async (req, sender): Promise<AnalyzeResponse> => {
     const settings = await getSettings();
     if (!hasCredentials(settings)) {
       return {
@@ -110,6 +111,12 @@ export default defineBackground(() => {
 
     const started = Date.now();
     const trace: string[] = [];
+    const tabId = sender.tab?.id;
+    const traceLine = (line: string) => {
+      trace.push(line);
+      // Stream each phase to the panel so long runs are not a black box.
+      if (tabId !== undefined) sendProgress(tabId, line);
+    };
     try {
       const { result, fromCache, cachedAt, diagnostics } = await runAnalysis(
         {
@@ -125,7 +132,7 @@ export default defineBackground(() => {
           requestGrouping: (args) => requestGroupingForSettings(args),
           getCache: getCachedGrouping,
           setCache: setCachedGrouping,
-          trace: (line) => trace.push(line),
+          trace: traceLine,
         },
       );
       return {

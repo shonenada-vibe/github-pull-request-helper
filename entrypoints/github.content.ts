@@ -3,7 +3,9 @@ import { mount, unmount } from 'svelte';
 import Panel from '../components/Panel.svelte';
 import { panelState, resetForLoading, pushLog } from '../components/panel-state.svelte';
 import { enableReviewMode, disableReviewMode } from '../components/review-mode';
-import { sendAnalyze, sendOpenOptions } from '../lib/messaging';
+import { browser } from 'wxt/browser';
+import { sendAnalyze, sendOpenOptions, isProgressEvent } from '../lib/messaging';
+import type { AnalyzeResponse } from '../lib/messaging';
 import { getSettings } from '../lib/storage';
 import type { GroupingResult } from '../lib/grouping/types';
 import { parsePrPath, isFilesTab, type PrLocation } from '../lib/pr-url';
@@ -16,6 +18,15 @@ export default defineContentScript({
     let current: PrLocation | null = null;
 
     panelState.onOpenOptions = () => sendOpenOptions();
+
+    // Live phase updates streamed from the background during an analysis.
+    browser.runtime.onMessage.addListener((message: unknown) => {
+      if (isProgressEvent(message)) {
+        panelState.progress = message.line;
+        pushLog(`· ${message.line}`);
+      }
+      return false;
+    });
 
     /**
      * Turn on Review Mode for a fresh result when the setting allows. GitHub
@@ -56,9 +67,22 @@ export default defineContentScript({
         `Analyzing ${loc.owner}/${loc.repo}#${loc.number}${force ? ' (forced refresh)' : ''}`,
       );
 
-      let res;
+      // Hard client-side cap so a hung provider can't spin forever; the
+      // bridge's own agent timeout (240s) is the longest legitimate wait.
+      const TIMEOUT_MS = 300_000;
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`no response after ${TIMEOUT_MS / 1000}s`)),
+          TIMEOUT_MS,
+        ),
+      );
+
+      let res: AnalyzeResponse;
       try {
-        res = await sendAnalyze({ type: 'ANALYZE', ...loc, force });
+        res = await Promise.race([
+          sendAnalyze({ type: 'ANALYZE', ...loc, force }),
+          timeout,
+        ]);
       } catch (err) {
         // The background channel itself failed (worker asleep, reload, etc.).
         if (!current || current.number !== loc.number) return;
@@ -90,7 +114,7 @@ export default defineContentScript({
             `${d.totalFiles} files (${d.interesting} interesting, ${d.mechanical} mechanical), ` +
             `${d.usedLlm ? 'LLM' : 'no LLM'}${cacheNote}.`,
         );
-        for (const line of d.trace ?? []) pushLog(`· ${line}`);
+        // Trace lines already arrived live via PROGRESS events.
         pushLog(`Rendered ${res.result.groups.length} groups.`);
         void maybeAutoReview(loc, res.result);
       } else {
@@ -99,7 +123,6 @@ export default defineContentScript({
         panelState.errorKind = res.kind;
         panelState.detail = res.detail;
         pushLog(`Error (${res.kind}) after ${roundTrip}ms: ${res.error}`);
-        for (const line of res.debug?.trace ?? []) pushLog(`· ${line}`);
         if (res.detail) pushLog('Raw model output captured below.');
       }
     }
@@ -114,8 +137,13 @@ export default defineContentScript({
     /** Auto-analyze when opted in; otherwise park the panel on its Analyze button. */
     async function enterPr(loc: PrLocation) {
       current = loc;
-      const settings = await getSettings();
-      if (settings.autoAnalyze) {
+      let autoAnalyze = false;
+      try {
+        autoAnalyze = (await getSettings()).autoAnalyze;
+      } catch {
+        // Settings unreadable — fall through to the manual button.
+      }
+      if (autoAnalyze) {
         void analyze(loc);
         return;
       }
