@@ -91,6 +91,18 @@ describe('review mode', () => {
     );
   });
 
+  it('gives headers a 48px top margin and distinct colors per group', () => {
+    enableReviewMode(result);
+    const headers = [
+      ...document.querySelectorAll<HTMLElement>('[data-github-differ="group-header"]'),
+    ];
+    const styles = headers.map((el) => el.getAttribute('style') ?? '');
+    expect(styles[0]).toContain('48px');
+    // The rotating palette makes adjacent groups visually distinct.
+    expect(styles[0]).not.toBe(styles[1]);
+    expect(styles[1]).not.toBe(styles[2]);
+  });
+
   it('restores the exact original order on disable', () => {
     const original = filesOnPage();
     enableReviewMode(result);

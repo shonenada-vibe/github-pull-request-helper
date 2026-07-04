@@ -63,17 +63,46 @@ function orderedGroups(
   return out;
 }
 
+/** Rotating header palette so adjacent groups are visually distinct. */
+const HEADER_COLORS = [
+  {
+    bg: 'var(--bgColor-accent-muted, #ddf4ff)',
+    border: 'var(--borderColor-accent-muted, rgba(84,174,255,0.4))',
+  },
+  {
+    bg: 'var(--bgColor-success-muted, #dafbe1)',
+    border: 'var(--borderColor-success-muted, rgba(74,194,107,0.4))',
+  },
+  {
+    bg: 'var(--bgColor-attention-muted, #fff8c5)',
+    border: 'var(--borderColor-attention-muted, rgba(212,167,44,0.4))',
+  },
+  {
+    bg: 'var(--bgColor-done-muted, #fbefff)',
+    border: 'var(--borderColor-done-muted, rgba(163,113,247,0.4))',
+  },
+  {
+    bg: 'var(--bgColor-severe-muted, #fff1e5)',
+    border: 'var(--borderColor-severe-muted, rgba(251,143,68,0.4))',
+  },
+  {
+    bg: 'var(--bgColor-danger-muted, #ffebe9)',
+    border: 'var(--borderColor-danger-muted, rgba(255,129,130,0.4))',
+  },
+];
+
 /**
  * Injected into the page (outside our shadow root), so styling is inline,
  * using GitHub's CSS variables with light-mode fallbacks.
  */
 function buildHeader(group: Group, position: number, reason?: string): HTMLElement {
+  const color = HEADER_COLORS[(position - 1) % HEADER_COLORS.length]!;
   const header = document.createElement('div');
   header.setAttribute('data-github-differ', 'group-header');
   header.style.cssText =
-    'margin:24px 0 12px;padding:10px 14px;' +
-    'border:1px solid var(--borderColor-accent-muted, rgba(84,174,255,0.4));' +
-    'border-radius:6px;background:var(--bgColor-accent-muted, #ddf4ff);' +
+    'margin:48px 0 12px;padding:10px 14px;' +
+    `border:1px solid ${color.border};` +
+    `border-radius:6px;background:${color.bg};` +
     'color:var(--fgColor-default, #1f2328);font-size:14px;line-height:1.4;';
 
   const title = document.createElement('div');
