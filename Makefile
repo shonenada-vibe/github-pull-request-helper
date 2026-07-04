@@ -1,7 +1,7 @@
 # github-differ — developer commands
 # Bun-managed, local-only environment. See setup.sh.
 
-.PHONY: setup dev build bridge test test:e2e lint typecheck format zip clean
+.PHONY: setup dev build bridge test test\:e2e lint typecheck format zip clean
 
 setup: ## Install dependencies
 	./setup.sh
