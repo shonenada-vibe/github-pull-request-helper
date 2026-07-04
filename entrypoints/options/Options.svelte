@@ -86,6 +86,21 @@
     </label>
 
     <label class="block">
+      <span class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          bind:checked={form.autoReviewMode}
+          class="h-4 w-4 rounded border-gray-300"
+        />
+        <span class="text-sm font-medium">Auto review mode</span>
+      </span>
+      <span class="mt-1 block text-xs text-gray-500">
+        Group and sort the file list on the page automatically when an analysis
+        finishes. You can always toggle it from the panel header.
+      </span>
+    </label>
+
+    <label class="block">
       <span class="text-sm font-medium">LLM provider</span>
       <select
         bind:value={form.provider}

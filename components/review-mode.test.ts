@@ -122,7 +122,9 @@ describe('review mode', () => {
     )!;
     expect(nav).toBeTruthy();
     expect(nav.getAttribute('style')).toContain('left: 16px');
-    const buttons = [...nav.querySelectorAll('button:not([aria-label])')];
+    const buttons = [
+      ...nav.querySelectorAll<HTMLButtonElement>('button:not([aria-label])'),
+    ];
     expect(buttons.map((b) => b.textContent)).toEqual([
       '1. Limiter core',
       '2. Tests',

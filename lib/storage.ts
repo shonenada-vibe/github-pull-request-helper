@@ -10,6 +10,8 @@ export interface Settings {
   provider: Provider;
   /** Output language code for the analysis (see lib/language.ts). */
   language: string;
+  /** Automatically enable Review Mode (grouped file list) after analysis. */
+  autoReviewMode: boolean;
   // Anthropic
   anthropicApiKey: string;
   model: Model;
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   githubToken: '',
   provider: 'anthropic',
   language: 'en',
+  autoReviewMode: true,
   anthropicApiKey: '',
   model: 'claude-opus-4-8',
   effort: 'medium',

@@ -2,8 +2,10 @@ import { defineContentScript, createShadowRootUi } from '#imports';
 import { mount, unmount } from 'svelte';
 import Panel from '../components/Panel.svelte';
 import { panelState, resetForLoading, pushLog } from '../components/panel-state.svelte';
-import { disableReviewMode } from '../components/review-mode';
+import { enableReviewMode, disableReviewMode } from '../components/review-mode';
 import { sendAnalyze, sendOpenOptions } from '../lib/messaging';
+import { getSettings } from '../lib/storage';
+import type { GroupingResult } from '../lib/grouping/types';
 import { parsePrPath, isFilesTab, type PrLocation } from '../lib/pr-url';
 import '../assets/tailwind.css';
 
@@ -14,6 +16,37 @@ export default defineContentScript({
     let current: PrLocation | null = null;
 
     panelState.onOpenOptions = () => sendOpenOptions();
+
+    /**
+     * Turn on Review Mode for a fresh result when the setting allows. GitHub
+     * may still be rendering diffs when a (cached) result lands, so a failed
+     * attempt retries once shortly after.
+     */
+    async function maybeAutoReview(loc: PrLocation, result: GroupingResult) {
+      const settings = await getSettings();
+      if (!settings.autoReviewMode) return;
+
+      const attempt = () => {
+        // The user may have navigated or toggled manually in the meantime.
+        if (!current || current.number !== loc.number || panelState.reviewMode) {
+          return true;
+        }
+        if (enableReviewMode(result)) {
+          panelState.reviewMode = true;
+          pushLog('Auto review mode: files grouped and sorted on the page.');
+          return true;
+        }
+        return false;
+      };
+
+      if (!attempt()) {
+        setTimeout(() => {
+          if (!attempt()) {
+            pushLog('Auto review mode: no file diff elements found on the page.');
+          }
+        }, 2000);
+      }
+    }
 
     async function analyze(loc: PrLocation, force = false) {
       current = loc;
@@ -58,6 +91,7 @@ export default defineContentScript({
             `${d.usedLlm ? 'LLM' : 'no LLM'}${cacheNote}.`,
         );
         pushLog(`Rendered ${res.result.groups.length} groups.`);
+        void maybeAutoReview(loc, res.result);
       } else {
         panelState.status = 'error';
         panelState.error = res.error;
