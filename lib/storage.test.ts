@@ -6,11 +6,18 @@ vi.mock('wxt/browser', () => ({
   browser: {
     storage: {
       local: {
-        get: vi.fn(async (key: string) =>
-          store.has(key) ? { [key]: store.get(key) } : {},
+        get: vi.fn(async (key: string | null) =>
+          key === null
+            ? Object.fromEntries(store)
+            : store.has(key)
+              ? { [key]: store.get(key) }
+              : {},
         ),
         set: vi.fn(async (items: Record<string, unknown>) => {
           for (const [k, v] of Object.entries(items)) store.set(k, v);
+        }),
+        remove: vi.fn(async (keys: string | string[]) => {
+          for (const k of Array.isArray(keys) ? keys : [keys]) store.delete(k);
         }),
       },
     },
@@ -21,9 +28,12 @@ import {
   getSettings,
   setSettings,
   hasCredentials,
+  groupingCacheKey,
   getCachedGrouping,
   setCachedGrouping,
+  clearGroupingCache,
   DEFAULT_SETTINGS,
+  type CachedAnalysis,
 } from './storage';
 import type { GroupingResult } from './grouping/types';
 
@@ -76,16 +86,82 @@ describe('hasCredentials', () => {
 });
 
 describe('grouping cache', () => {
-  it('stores and retrieves by sha', async () => {
-    const result: GroupingResult = {
-      intent: 'x',
-      changeType: 'chore',
-      groups: [],
-      readingOrder: [],
-      hasMechanical: false,
-    };
-    expect(await getCachedGrouping('abc')).toBeUndefined();
-    await setCachedGrouping('abc', result);
-    expect(await getCachedGrouping('abc')).toEqual(result);
+  const result: GroupingResult = {
+    intent: 'x',
+    changeType: 'chore',
+    groups: [],
+    readingOrder: [],
+    hasMechanical: false,
+  };
+
+  function entry(savedAt = Date.now()): CachedAnalysis {
+    return { result, savedAt, totalFiles: 3, interesting: 2, mechanical: 1 };
+  }
+
+  it('keys entries by provider, model, language, and sha', () => {
+    const key = groupingCacheKey({
+      provider: 'anthropic',
+      model: 'claude-opus-4-8',
+      language: 'zh-CN',
+      sha: 'abc',
+    });
+    expect(key).toBe('grouping:v2:anthropic:claude-opus-4-8:zh-CN:abc');
+  });
+
+  it('stores and retrieves an entry', async () => {
+    const key = groupingCacheKey({
+      provider: 'p',
+      model: 'm',
+      language: 'en',
+      sha: 'abc',
+    });
+    expect(await getCachedGrouping(key)).toBeUndefined();
+    const e = entry();
+    await setCachedGrouping(key, e);
+    expect(await getCachedGrouping(key)).toEqual(e);
+  });
+
+  it('expires entries older than the TTL', async () => {
+    const key = groupingCacheKey({
+      provider: 'p',
+      model: 'm',
+      language: 'en',
+      sha: 'old',
+    });
+    await setCachedGrouping(key, entry(Date.now() - 8 * 24 * 60 * 60 * 1000));
+    expect(await getCachedGrouping(key)).toBeUndefined();
+    expect(store.has(key)).toBe(false); // Expired entry was deleted.
+  });
+
+  it('evicts the oldest entries beyond the cap', async () => {
+    for (let i = 0; i < 41; i++) {
+      const key = groupingCacheKey({
+        provider: 'p',
+        model: 'm',
+        language: 'en',
+        sha: `sha${i}`,
+      });
+      // Older i = older savedAt.
+      await setCachedGrouping(key, entry(Date.now() - (41 - i) * 1000));
+    }
+    const cacheKeys = [...store.keys()].filter((k) => k.startsWith('grouping:'));
+    expect(cacheKeys).toHaveLength(40);
+    expect(store.has('grouping:v2:p:m:en:sha0')).toBe(false); // Oldest evicted.
+    expect(store.has('grouping:v2:p:m:en:sha40')).toBe(true);
+  });
+
+  it('clears all cache entries (including legacy v1) but not settings', async () => {
+    store.set('grouping:legacy-sha', result);
+    store.set('settings', DEFAULT_SETTINGS);
+    const key = groupingCacheKey({
+      provider: 'p',
+      model: 'm',
+      language: 'en',
+      sha: 'x',
+    });
+    await setCachedGrouping(key, entry());
+    expect(await clearGroupingCache()).toBe(2);
+    expect(store.has('settings')).toBe(true);
+    expect([...store.keys()].some((k) => k.startsWith('grouping:'))).toBe(false);
   });
 });

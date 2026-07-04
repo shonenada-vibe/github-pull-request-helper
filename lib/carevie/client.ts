@@ -19,6 +19,8 @@ export interface CarevieReviewParams {
   owner: string;
   repo: string;
   number: number;
+  /** Optional output language code, forwarded as `lang`. */
+  language?: string;
 }
 
 /** Build the review-files endpoint from a (possibly trailing-slashed) base URL. */
@@ -29,6 +31,7 @@ export function reviewFilesUrl(params: CarevieReviewParams): string {
     repo: `${params.owner}/${params.repo}`,
     pr: String(params.number),
   });
+  if (params.language) query.set('lang', params.language);
   return `${base}/api/review-files?${query}`;
 }
 

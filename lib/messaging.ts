@@ -20,6 +20,8 @@ export interface DebugInfo {
   mechanical: number;
   usedLlm: boolean;
   fromCache: boolean;
+  /** When fromCache, the timestamp the entry was originally saved. */
+  cachedAt?: number;
   durationMs: number;
 }
 

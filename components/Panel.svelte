@@ -31,14 +31,21 @@
 
 {#if panelState.visible}
   <aside
-    class="fixed right-4 top-20 z-[9999] flex max-h-[80vh] w-[360px] flex-col overflow-hidden rounded-lg border border-gray-300 bg-gray-50 shadow-xl"
+    class="fixed right-4 top-20 z-[9999] flex max-h-[86vh] w-[480px] max-w-[92vw] flex-col overflow-hidden rounded-lg border border-gray-300 bg-gray-50 shadow-xl"
   >
     <header
       class="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2"
     >
       <span class="flex-1 font-semibold text-gray-900">github-differ</span>
       {#if panelState.fromCache}
-        <span class="text-xs text-gray-400" title="Loaded from cache">cached</span>
+        <span
+          class="text-xs text-gray-400"
+          title={panelState.debug?.cachedAt
+            ? `Loaded from cache, saved ${new Date(panelState.debug.cachedAt).toLocaleString()}`
+            : 'Loaded from cache'}
+        >
+          cached
+        </span>
       {/if}
       <button
         type="button"

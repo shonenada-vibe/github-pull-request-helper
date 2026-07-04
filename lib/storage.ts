@@ -8,6 +8,8 @@ export interface Settings {
   githubToken: string;
   /** Which LLM backend to use for grouping. */
   provider: Provider;
+  /** Output language code for the analysis (see lib/language.ts). */
+  language: string;
   // Anthropic
   anthropicApiKey: string;
   model: Model;
@@ -24,6 +26,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   githubToken: '',
   provider: 'anthropic',
+  language: 'en',
   anthropicApiKey: '',
   model: 'claude-opus-4-8',
   effort: 'medium',
@@ -36,6 +39,9 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const SETTINGS_KEY = 'settings';
 const CACHE_PREFIX = 'grouping:';
+const CACHE_V2_PREFIX = 'grouping:v2:';
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 40;
 
 export async function getSettings(): Promise<Settings> {
   const stored = await browser.storage.local.get(SETTINGS_KEY);
@@ -62,18 +68,75 @@ export function hasCredentials(settings: Settings): boolean {
   return settings.anthropicApiKey.length > 0;
 }
 
-/** Grouping results are cached by PR head SHA so re-opening a PR is instant. */
+/** One cached analysis: the result plus enough metadata to skip re-fetching. */
+export interface CachedAnalysis {
+  result: GroupingResult;
+  savedAt: number;
+  totalFiles: number;
+  interesting: number;
+  mechanical: number;
+}
+
+/**
+ * Cache key for an analysis. Includes provider, model, and language so
+ * switching any of them re-analyzes instead of serving a stale variant;
+ * the head SHA invalidates on new pushes.
+ */
+export function groupingCacheKey(p: {
+  provider: string;
+  model: string;
+  language: string;
+  sha: string;
+}): string {
+  return `${CACHE_V2_PREFIX}${p.provider}:${p.model}:${p.language}:${p.sha}`;
+}
+
+/** Fetch a cached analysis; expired entries are removed and treated as misses. */
 export async function getCachedGrouping(
-  sha: string,
-): Promise<GroupingResult | undefined> {
-  const key = CACHE_PREFIX + sha;
+  key: string,
+): Promise<CachedAnalysis | undefined> {
   const stored = await browser.storage.local.get(key);
-  return stored[key] as GroupingResult | undefined;
+  const entry = stored[key] as CachedAnalysis | undefined;
+  if (!entry) return undefined;
+  if (Date.now() - entry.savedAt > CACHE_TTL_MS) {
+    await browser.storage.local.remove(key);
+    return undefined;
+  }
+  return entry;
 }
 
 export async function setCachedGrouping(
-  sha: string,
-  result: GroupingResult,
+  key: string,
+  entry: CachedAnalysis,
 ): Promise<void> {
-  await browser.storage.local.set({ [CACHE_PREFIX + sha]: result });
+  await browser.storage.local.set({ [key]: entry });
+  await evictOldEntries();
+}
+
+function savedAtOf(value: unknown): number {
+  if (typeof value === 'object' && value !== null) {
+    const at = (value as { savedAt?: unknown }).savedAt;
+    if (typeof at === 'number') return at;
+  }
+  return 0; // Legacy v1 entries sort first and get evicted soonest.
+}
+
+/** Keep the cache bounded: drop the oldest entries past CACHE_MAX_ENTRIES. */
+async function evictOldEntries(): Promise<void> {
+  const all = await browser.storage.local.get(null);
+  const entries = Object.entries(all).filter(([k]) => k.startsWith(CACHE_PREFIX));
+  if (entries.length <= CACHE_MAX_ENTRIES) return;
+  const excess = entries
+    .sort((a, b) => savedAtOf(a[1]) - savedAtOf(b[1]))
+    .slice(0, entries.length - CACHE_MAX_ENTRIES)
+    .map(([k]) => k);
+  await browser.storage.local.remove(excess);
+}
+
+/** Remove every cached analysis (v1 and v2). Returns how many were removed. */
+export async function clearGroupingCache(): Promise<number> {
+  const all = await browser.storage.local.get(null);
+  const keys = Object.keys(all).filter((k) => k.startsWith(CACHE_PREFIX));
+  if (keys.length) await browser.storage.local.remove(keys);
+  return keys.length;
 }

@@ -4,14 +4,17 @@
   import {
     getSettings,
     setSettings,
+    clearGroupingCache,
     DEFAULT_SETTINGS,
     type Settings,
   } from '../../lib/storage';
   import { MODELS } from '../../lib/anthropic/client';
+  import { LANGUAGES } from '../../lib/language';
   import { originPattern } from '../../lib/host-permission';
 
   let form = $state<Settings>({ ...DEFAULT_SETTINGS });
   let saved = $state(false);
+  let clearedCount = $state<number | null>(null);
 
   const efforts: Settings['effort'][] = ['low', 'medium', 'high'];
 
@@ -38,6 +41,11 @@
     saved = true;
     setTimeout(() => (saved = false), 2000);
   }
+
+  async function clearCache() {
+    clearedCount = await clearGroupingCache();
+    setTimeout(() => (clearedCount = null), 3000);
+  }
 </script>
 
 <main class="mx-auto max-w-xl p-6 font-sans text-gray-900">
@@ -59,6 +67,21 @@
       />
       <span class="mt-1 block text-xs text-gray-500">
         Read-only access to Pull requests + Contents.
+      </span>
+    </label>
+
+    <label class="block">
+      <span class="text-sm font-medium">Output language</span>
+      <select
+        bind:value={form.language}
+        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+      >
+        {#each LANGUAGES as lang (lang.code)}
+          <option value={lang.code}>{lang.label}</option>
+        {/each}
+      </select>
+      <span class="mt-1 block text-xs text-gray-500">
+        The analysis (intent, group titles, rationales) is written in this language.
       </span>
     </label>
 
@@ -202,4 +225,26 @@
       {/if}
     </div>
   </form>
+
+  <section class="mt-8 border-t border-gray-200 pt-5">
+    <h2 class="text-sm font-semibold">Analysis cache</h2>
+    <p class="mt-1 text-xs text-gray-500">
+      Results are cached per PR head commit (and per provider/model/language) for
+      7 days, so re-opening a PR is instant until it gets new pushes.
+    </p>
+    <div class="mt-3 flex items-center gap-3">
+      <button
+        type="button"
+        class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
+        onclick={clearCache}
+      >
+        Clear cache
+      </button>
+      {#if clearedCount !== null}
+        <span class="text-sm text-emerald-600">
+          Cleared {clearedCount} cached {clearedCount === 1 ? 'analysis' : 'analyses'} ✓
+        </span>
+      {/if}
+    </div>
+  </section>
 </main>

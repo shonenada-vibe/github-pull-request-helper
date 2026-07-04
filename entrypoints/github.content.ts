@@ -48,10 +48,13 @@ export default defineContentScript({
         panelState.fromCache = res.fromCache;
         panelState.debug = res.debug;
         const d = res.debug;
+        const cacheNote = d.fromCache
+          ? `, from cache (saved ${d.cachedAt ? new Date(d.cachedAt).toLocaleString() : 'earlier'})`
+          : '';
         pushLog(
           `Done in ${roundTrip}ms via ${d.provider}/${d.model || '(model unset)'} — ` +
             `${d.totalFiles} files (${d.interesting} interesting, ${d.mechanical} mechanical), ` +
-            `${d.usedLlm ? 'LLM' : 'no LLM'}${d.fromCache ? ', from cache' : ''}.`,
+            `${d.usedLlm ? 'LLM' : 'no LLM'}${cacheNote}.`,
         );
         pushLog(`Rendered ${res.result.groups.length} groups.`);
       } else {

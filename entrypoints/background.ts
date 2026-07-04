@@ -14,7 +14,11 @@ import {
   type Settings,
 } from '../lib/storage';
 import { originPattern } from '../lib/host-permission';
-import { fetchPullRequest, GithubApiError } from '../lib/github/client';
+import {
+  fetchPullRequest,
+  fetchPullRequestHead,
+  GithubApiError,
+} from '../lib/github/client';
 import { AnthropicError } from '../lib/anthropic/client';
 import { OpenAIError } from '../lib/openai/client';
 import { CarevieError } from '../lib/carevie/client';
@@ -104,7 +108,7 @@ export default defineBackground(() => {
 
     const started = Date.now();
     try {
-      const { result, fromCache, diagnostics } = await runAnalysis(
+      const { result, fromCache, cachedAt, diagnostics } = await runAnalysis(
         {
           owner: req.owner,
           repo: req.repo,
@@ -113,6 +117,7 @@ export default defineBackground(() => {
           force: req.force,
         },
         {
+          fetchPRHead: fetchPullRequestHead,
           fetchPR: fetchPullRequest,
           requestGrouping: (args) => requestGroupingForSettings(args),
           getCache: getCachedGrouping,
@@ -123,7 +128,12 @@ export default defineBackground(() => {
         type: 'RESULT',
         result,
         fromCache,
-        debug: { ...diagnostics, fromCache, durationMs: Date.now() - started },
+        debug: {
+          ...diagnostics,
+          fromCache,
+          cachedAt,
+          durationMs: Date.now() - started,
+        },
       };
     } catch (err) {
       return toErrorResponse(err);

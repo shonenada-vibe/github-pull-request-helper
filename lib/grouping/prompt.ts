@@ -1,5 +1,6 @@
 import type { PullRequestData } from '../types';
 import type { ClassifiedFile } from '../heuristics/classify';
+import { promptName } from '../language';
 
 /**
  * System prompt. Kept stable (no per-PR data) so it caches across requests —
@@ -16,6 +17,20 @@ Your job:
 4. Produce a READING ORDER over the groups that minimizes back-tracking: typically start with the new/changed public interface or the core behavioral change, then its implementation, then call sites, then tests, then config/docs. Give a one-line reason for each step.
 
 Be concise. Prefer a few meaningful groups over many tiny ones. Respond only with JSON matching the provided schema.`;
+
+/**
+ * System prompt for a given output language. English returns the base prompt
+ * unchanged (keeps the provider-side prompt cache warm for the default).
+ */
+export function buildSystemPrompt(languageCode: string): string {
+  const name = promptName(languageCode);
+  if (name === 'English') return SYSTEM_PROMPT;
+  return (
+    `${SYSTEM_PROMPT}\n\n` +
+    `Write every human-readable string (intent, group titles, rationales, reading-order reasons) in ${name}. ` +
+    'Keep group ids and file paths exactly as they appear in the diff.'
+  );
+}
 
 /** Build the user-turn content from PR metadata and the interesting files. */
 export function buildUserContent(

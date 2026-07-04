@@ -54,6 +54,7 @@ export function requestGroupingForSettings(
         owner: pr.owner,
         repo: pr.repo,
         number: pr.number,
+        language: settings.language,
       },
       deps.carevieFetch,
     );

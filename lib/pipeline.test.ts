@@ -50,6 +50,7 @@ const llmResponse: GroupingResponse = {
 
 function makeDeps(overrides: Partial<AnalysisDeps> = {}): AnalysisDeps {
   return {
+    fetchPRHead: vi.fn(async () => ({ headSha: 'sha1' })),
     fetchPR: vi.fn(async () => pr([fileDiff('src/cache.ts'), fileDiff('bun.lockb')])),
     requestGrouping: vi.fn(async () => llmResponse),
     getCache: vi.fn(async () => undefined),
@@ -78,25 +79,52 @@ describe('runAnalysis', () => {
     expect(result.hasMechanical).toBe(true);
     expect(result.groups.at(-1)?.files).toEqual(['bun.lockb']);
     expect(result.readingOrder.at(-1)?.groupId).toBe('mechanical');
-    expect(deps.setCache).toHaveBeenCalledWith('sha1', result);
+    // Cached under a key carrying provider/model/language and the head sha.
+    const [key, entry] = (deps.setCache as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(key).toBe(`grouping:v2:anthropic:${settings.model}:en:sha1`);
+    expect(entry.result).toEqual(result);
+    expect(entry).toMatchObject({ totalFiles: 2, interesting: 1, mechanical: 1 });
   });
 
-  it('returns the cached result without calling the LLM', async () => {
-    const cached = { ...llmResponse, hasMechanical: false };
+  it('serves a cache hit from the head sha alone, without fetching the diff', async () => {
+    const cached = {
+      result: { ...llmResponse, hasMechanical: false },
+      savedAt: 123,
+      totalFiles: 2,
+      interesting: 1,
+      mechanical: 1,
+    };
     const deps = makeDeps({ getCache: vi.fn(async () => cached) });
-    const { result, fromCache } = await runAnalysis(
+    const { result, fromCache, cachedAt, diagnostics } = await runAnalysis(
       { owner: 'o', repo: 'r', number: 1, settings },
       deps,
     );
     expect(fromCache).toBe(true);
-    expect(result).toEqual(cached);
+    expect(cachedAt).toBe(123);
+    expect(result).toEqual(cached.result);
+    expect(diagnostics).toMatchObject({ totalFiles: 2, usedLlm: false });
     expect(deps.requestGrouping).not.toHaveBeenCalled();
+    expect(deps.fetchPR).not.toHaveBeenCalled(); // Only the head lookup ran.
   });
 
-  it('bypasses the cache when force is set', async () => {
-    const deps = makeDeps({ getCache: vi.fn(async () => ({ ...llmResponse, hasMechanical: false })) });
+  it('bypasses the cache (and the head lookup) when force is set', async () => {
+    const deps = makeDeps({ getCache: vi.fn(async () => undefined) });
     await runAnalysis({ owner: 'o', repo: 'r', number: 1, settings, force: true }, deps);
     expect(deps.requestGrouping).toHaveBeenCalledOnce();
+    expect(deps.getCache).not.toHaveBeenCalled();
+    expect(deps.fetchPRHead).not.toHaveBeenCalled();
+  });
+
+  it('includes the language in the system prompt and the cache key', async () => {
+    const deps = makeDeps();
+    await runAnalysis(
+      { owner: 'o', repo: 'r', number: 1, settings: { ...settings, language: 'zh-CN' } },
+      deps,
+    );
+    const args = (deps.requestGrouping as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+    expect(args.system).toContain('Simplified Chinese');
+    const [key] = (deps.setCache as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(key).toContain(':zh-CN:');
   });
 
   it('skips the LLM when every file is mechanical', async () => {

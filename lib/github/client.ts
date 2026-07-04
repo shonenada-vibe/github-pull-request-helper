@@ -109,6 +109,24 @@ async function ghGet(
 }
 
 /**
+ * Fetch just the PR head SHA (one request) — enough to look up the analysis
+ * cache without downloading the whole diff.
+ */
+export async function fetchPullRequestHead(
+  { owner, repo, number, token }: FetchPullRequestParams,
+  fetchImpl: FetchImpl = fetch,
+): Promise<{ headSha: string }> {
+  const res = await ghGet(
+    `${API}/repos/${owner}/${repo}/pulls/${number}`,
+    token,
+    'application/vnd.github+json',
+    fetchImpl,
+  );
+  const meta = (await res.json()) as { head: { sha: string } };
+  return { headSha: meta.head.sha };
+}
+
+/**
  * Fetch everything needed to analyze a PR: metadata, changed files (paginated),
  * and commit messages.
  *

@@ -42,6 +42,11 @@ describe('reviewFilesUrl', () => {
       'https://x.example/api/review-files?',
     );
   });
+
+  it('forwards the output language as lang when set', () => {
+    expect(reviewFilesUrl({ ...params, language: 'zh-CN' })).toContain('&lang=zh-CN');
+    expect(reviewFilesUrl(params)).not.toContain('lang=');
+  });
 });
 
 describe('parseCarevieBody', () => {

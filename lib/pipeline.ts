@@ -1,23 +1,27 @@
 import type { PullRequestData } from './types';
-import type { Settings } from './storage';
+import { groupingCacheKey, type Settings, type CachedAnalysis } from './storage';
 import type { GroupingResponse, GroupingResult, Group } from './grouping/types';
 import type { RequestGroupingArgs } from './llm/dispatch';
 import { partitionFiles, type ClassifiedFile } from './heuristics/classify';
-import { SYSTEM_PROMPT, buildUserContent } from './grouping/prompt';
+import { buildSystemPrompt, buildUserContent } from './grouping/prompt';
 
 const MECHANICAL_GROUP_ID = 'mechanical';
 
+interface PrCoords {
+  owner: string;
+  repo: string;
+  number: number;
+  token: string;
+}
+
 export interface AnalysisDeps {
-  fetchPR: (p: {
-    owner: string;
-    repo: string;
-    number: number;
-    token: string;
-  }) => Promise<PullRequestData>;
+  /** Cheap single-request head-SHA lookup, used for the cache check. */
+  fetchPRHead: (p: PrCoords) => Promise<{ headSha: string }>;
+  fetchPR: (p: PrCoords) => Promise<PullRequestData>;
   /** Provider-agnostic grouping request (dispatched by settings.provider). */
   requestGrouping: (args: RequestGroupingArgs) => Promise<GroupingResponse>;
-  getCache: (sha: string) => Promise<GroupingResult | undefined>;
-  setCache: (sha: string, result: GroupingResult) => Promise<void>;
+  getCache: (key: string) => Promise<CachedAnalysis | undefined>;
+  setCache: (key: string, entry: CachedAnalysis) => Promise<void>;
 }
 
 export interface RunAnalysisParams {
@@ -40,7 +44,16 @@ export interface AnalysisDiagnostics {
 export interface AnalysisOutcome {
   result: GroupingResult;
   fromCache: boolean;
+  /** When fromCache, the timestamp the entry was originally saved. */
+  cachedAt?: number;
   diagnostics: AnalysisDiagnostics;
+}
+
+/** Human-facing model label for diagnostics and the cache key. */
+function modelLabel(settings: Settings): string {
+  if (settings.provider === 'openai') return settings.openaiModel;
+  if (settings.provider === 'carevie') return 'review-files';
+  return settings.model;
 }
 
 function mechanicalGroup(mechanical: ClassifiedFile[]): Group {
@@ -81,37 +94,47 @@ export async function runAnalysis(
   { owner, repo, number, settings, force }: RunAnalysisParams,
   deps: AnalysisDeps,
 ): Promise<AnalysisOutcome> {
-  const pr = await deps.fetchPR({
-    owner,
-    repo,
-    number,
-    token: settings.githubToken,
-  });
+  const coords = { owner, repo, number, token: settings.githubToken };
+  const model = modelLabel(settings);
+  const keyFor = (sha: string) =>
+    groupingCacheKey({
+      provider: settings.provider,
+      model,
+      language: settings.language,
+      sha,
+    });
 
+  if (!force) {
+    // One cheap request for the head SHA is enough to serve a cache hit —
+    // no diff download, no LLM call.
+    const { headSha } = await deps.fetchPRHead(coords);
+    const cached = await deps.getCache(keyFor(headSha));
+    if (cached) {
+      return {
+        result: cached.result,
+        fromCache: true,
+        cachedAt: cached.savedAt,
+        diagnostics: {
+          provider: settings.provider,
+          model,
+          totalFiles: cached.totalFiles,
+          interesting: cached.interesting,
+          mechanical: cached.mechanical,
+          usedLlm: false,
+        },
+      };
+    }
+  }
+
+  const pr = await deps.fetchPR(coords);
   const { interesting, mechanical } = partitionFiles(pr.files);
   const baseDiagnostics = {
     provider: settings.provider,
-    model:
-      settings.provider === 'openai'
-        ? settings.openaiModel
-        : settings.provider === 'carevie'
-          ? 'review-files'
-          : settings.model,
+    model,
     totalFiles: pr.files.length,
     interesting: interesting.length,
     mechanical: mechanical.length,
   };
-
-  if (!force) {
-    const cached = await deps.getCache(pr.headSha);
-    if (cached) {
-      return {
-        result: cached,
-        fromCache: true,
-        diagnostics: { ...baseDiagnostics, usedLlm: false },
-      };
-    }
-  }
 
   let response: GroupingResponse;
   let usedLlm = false;
@@ -128,13 +151,19 @@ export async function runAnalysis(
     usedLlm = true;
     response = await deps.requestGrouping({
       settings,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(settings.language),
       userContent: buildUserContent(pr, interesting),
       pr: { owner, repo, number },
     });
   }
 
   const result = finalize(response, mechanical);
-  await deps.setCache(pr.headSha, result);
+  await deps.setCache(keyFor(pr.headSha), {
+    result,
+    savedAt: Date.now(),
+    totalFiles: pr.files.length,
+    interesting: interesting.length,
+    mechanical: mechanical.length,
+  });
   return { result, fromCache: false, diagnostics: { ...baseDiagnostics, usedLlm } };
 }
