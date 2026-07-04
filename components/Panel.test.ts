@@ -7,6 +7,7 @@ import type { GroupingResult } from '../lib/grouping/types';
 
 function reset() {
   panelState.visible = false;
+  panelState.collapsed = false;
   panelState.status = 'idle';
   panelState.result = undefined;
   panelState.error = undefined;
@@ -99,6 +100,41 @@ describe('Panel', () => {
     // Raw output auto-expands because a detail was captured.
     expect(getByText(/Raw model output/)).toBeTruthy();
     expect(getByText(/"path":"src\/a.ts"/)).toBeTruthy();
+  });
+
+  it('collapses to a reopen pill and expands back', async () => {
+    panelState.visible = true;
+    panelState.status = 'ready';
+    panelState.result = result;
+
+    const { getByTitle, getByText, queryByText } = render(Panel);
+    await fireEvent.click(getByTitle('Hide'));
+    expect(queryByText('Reading order')).toBeNull();
+
+    await fireEvent.click(getByTitle(/show github-differ panel/i));
+    expect(getByText('Reading order')).toBeTruthy();
+  });
+
+  it('resizes when the corner handle is dragged', async () => {
+    panelState.visible = true;
+    panelState.status = 'ready';
+    panelState.result = result;
+
+    const { container, getByLabelText } = render(Panel);
+    const handle = getByLabelText('Resize panel');
+    // jsdom has no PointerEvent; MouseEvent with pointer type names works.
+    await fireEvent(
+      handle,
+      new MouseEvent('pointerdown', { clientX: 500, clientY: 300, bubbles: true }),
+    );
+    await fireEvent(
+      handle,
+      new MouseEvent('pointermove', { clientX: 400, clientY: 400, bubbles: true }),
+    );
+
+    const aside = container.querySelector('aside')!;
+    expect(aside.style.width).toBe('580px'); // 480 default + 100px leftward drag.
+    expect(aside.style.height).toBe('580px'); // 480 fallback + 100px downward drag.
   });
 
   it('jumps to a file when a reading-order step is clicked', async () => {

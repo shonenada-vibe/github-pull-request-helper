@@ -4,7 +4,10 @@ import type { ErrorKind, DebugInfo } from '../lib/messaging';
 export type PanelStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface PanelState {
+  /** Whether the panel applies to the current page (set by the content script). */
   visible: boolean;
+  /** User preference: collapsed to the small reopen pill. Survives navigation. */
+  collapsed: boolean;
   status: PanelStatus;
   result?: GroupingResult;
   fromCache: boolean;
@@ -25,6 +28,7 @@ export interface PanelState {
 /** Shared reactive panel state. The content script mutates it; Panel reads it. */
 export const panelState: PanelState = $state({
   visible: false,
+  collapsed: false,
   status: 'idle',
   fromCache: false,
   logs: [],

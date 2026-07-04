@@ -17,6 +17,50 @@
     if (panelState.detail) showDebug = true;
   });
 
+  // User-resizable dimensions; height stays auto (capped) until first dragged.
+  let panelEl = $state<HTMLElement | null>(null);
+  let width = $state(480);
+  let height = $state<number | null>(null);
+
+  function startResize(down: PointerEvent) {
+    const handle = down.currentTarget as HTMLElement;
+    handle.setPointerCapture?.(down.pointerId);
+    const rect = panelEl?.getBoundingClientRect();
+    const startWidth = rect?.width || width;
+    const startHeight = rect?.height || 480;
+    const startX = down.clientX;
+    const startY = down.clientY;
+
+    function onMove(move: PointerEvent) {
+      // Anchored to the right edge, so dragging left grows the panel.
+      width = Math.min(
+        Math.max(startWidth + (startX - move.clientX), 320),
+        window.innerWidth - 32,
+      );
+      height = Math.min(
+        Math.max(startHeight + (move.clientY - startY), 240),
+        window.innerHeight - 96,
+      );
+    }
+    function onUp() {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+    }
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    down.preventDefault();
+  }
+
+  const statusDot = $derived(
+    panelState.status === 'loading'
+      ? 'animate-pulse bg-amber-500'
+      : panelState.status === 'error'
+        ? 'bg-red-500'
+        : panelState.status === 'ready'
+          ? 'bg-emerald-500'
+          : 'bg-gray-400',
+  );
+
   function jumpToGroup(groupId: string) {
     const group = groupsById.get(groupId);
     const first = group?.files[0];
@@ -29,9 +73,23 @@
   }
 </script>
 
-{#if panelState.visible}
+{#if panelState.visible && panelState.collapsed}
+  <button
+    type="button"
+    class="fixed right-4 top-20 z-[9999] flex items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-100"
+    title="Show github-differ panel"
+    onclick={() => (panelState.collapsed = false)}
+  >
+    <span class="h-2 w-2 rounded-full {statusDot}"></span>
+    differ
+  </button>
+{:else if panelState.visible}
   <aside
-    class="fixed right-4 top-20 z-[9999] flex max-h-[86vh] w-[480px] max-w-[92vw] flex-col overflow-hidden rounded-lg border border-gray-300 bg-gray-50 shadow-xl"
+    bind:this={panelEl}
+    class="fixed right-4 top-20 z-[9999] flex max-w-[92vw] flex-col overflow-hidden rounded-lg border border-gray-300 bg-gray-50 shadow-xl {height === null
+      ? 'max-h-[86vh]'
+      : ''}"
+    style="width: {width}px;{height === null ? '' : ` height: ${height}px;`}"
   >
     <header
       class="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2"
@@ -59,7 +117,7 @@
         type="button"
         class="rounded px-2 py-1 text-sm text-gray-500 hover:bg-gray-100"
         title="Hide"
-        onclick={() => (panelState.visible = false)}
+        onclick={() => (panelState.collapsed = true)}
       >
         ✕
       </button>
@@ -173,5 +231,17 @@
         </div>
       {/if}
     </div>
+
+    <button
+      type="button"
+      class="absolute bottom-0 left-0 flex h-5 w-5 cursor-sw-resize items-start justify-end text-gray-300 hover:text-gray-500"
+      aria-label="Resize panel"
+      title="Drag to resize"
+      onpointerdown={startResize}
+    >
+      <svg viewBox="0 0 8 8" class="h-2.5 w-2.5 rotate-90" fill="currentColor">
+        <path d="M0 8 L8 0 L8 8 Z" />
+      </svg>
+    </button>
   </aside>
 {/if}
