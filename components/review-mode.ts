@@ -1,4 +1,4 @@
-import type { GroupingResult, Group } from '../lib/grouping/types';
+import type { GroupingResult, Group, Importance } from '../lib/grouping/types';
 import { sortGroupsByImportance } from '../lib/grouping/sort';
 
 /**
@@ -97,6 +97,19 @@ const HEADER_COLORS = [
 
 type HeaderColor = (typeof HEADER_COLORS)[number];
 
+/** Inline chip styles per importance level (GitHub vars + light fallbacks). */
+const IMPORTANCE_STYLES: Record<Importance, string> = {
+  high:
+    'background:var(--bgColor-danger-muted, #ffebe9);' +
+    'color:var(--fgColor-danger, #cf222e);',
+  medium:
+    'background:var(--bgColor-attention-muted, #fff8c5);' +
+    'color:var(--fgColor-attention, #9a6700);',
+  low:
+    'background:var(--bgColor-neutral-muted, #eff1f3);' +
+    'color:var(--fgColor-muted, #57606a);',
+};
+
 function colorFor(position: number): HeaderColor {
   return HEADER_COLORS[(position - 1) % HEADER_COLORS.length]!;
 }
@@ -132,16 +145,26 @@ function buildHeader(
 
   const title = document.createElement('div');
   title.style.cssText = 'display:flex;align-items:center;gap:8px;font-weight:600;';
-  title.textContent = `${position}. ${group.title}`;
+  const titleText = document.createElement('span');
+  titleText.textContent = `${position}. ${group.title}`;
+  title.appendChild(titleText);
+
+  // Priority chip directly after the group name.
+  if (group.importance && group.label !== 'mechanical') {
+    const priority = document.createElement('span');
+    priority.style.cssText =
+      'padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;' +
+      IMPORTANCE_STYLES[group.importance];
+    priority.textContent = group.importance;
+    title.appendChild(priority);
+  }
+
   const badge = document.createElement('span');
   badge.style.cssText =
     'padding:1px 8px;border-radius:999px;font-size:12px;font-weight:500;' +
     'background:var(--bgColor-neutral-muted, #eff1f3);' +
     'color:var(--fgColor-muted, #57606a);';
-  badge.textContent =
-    group.importance && group.label !== 'mechanical'
-      ? `${group.label} · ${group.importance}`
-      : group.label;
+  badge.textContent = group.label;
   title.appendChild(badge);
   header.appendChild(title);
 

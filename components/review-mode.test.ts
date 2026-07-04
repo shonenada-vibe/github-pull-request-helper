@@ -15,6 +15,7 @@ const result: GroupingResult = {
       id: 'core',
       title: 'Limiter core',
       label: 'behavioral',
+      importance: 'high',
       rationale: 'The new behavior.',
       files: ['src/limiter.ts'],
     },
@@ -82,6 +83,13 @@ describe('review mode', () => {
     expect(headers[0]).toContain('1. Limiter core');
     expect(headers[0]).toContain('behavioral');
     expect(headers[0]).toContain('Start here.');
+    // The priority chip sits right after the group name, before the label.
+    expect(headers[0]!.indexOf('1. Limiter core')).toBeLessThan(
+      headers[0]!.indexOf('high'),
+    );
+    expect(headers[0]!.indexOf('high')).toBeLessThan(
+      headers[0]!.indexOf('behavioral'),
+    );
     expect(headers[2]).toContain('3. Mechanical / low-signal');
 
     // Each header directly precedes its group's first file.

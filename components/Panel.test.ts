@@ -147,6 +147,9 @@ describe('Panel', () => {
     expect(html.indexOf('Docs updates')).toBeLessThan(
       html.indexOf('Mechanical stuff'),
     );
+    // The priority chip follows the group name, before the label badge.
+    expect(html.indexOf('Core behavior')).toBeLessThan(html.indexOf('high'));
+    expect(html.indexOf('high')).toBeLessThan(html.indexOf('behavioral'));
   });
 
   it('toggles Review Mode: rearranges the page and restores it', async () => {

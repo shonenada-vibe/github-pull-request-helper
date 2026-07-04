@@ -31,7 +31,7 @@
     onclick={() => (open = !open)}
   >
     <span class="text-gray-400">{open ? '▾' : '▸'}</span>
-    <span class="flex-1 font-medium text-gray-900">{group.title}</span>
+    <span class="font-medium text-gray-900">{group.title}</span>
     {#if group.importance && group.label !== 'mechanical'}
       <span
         class="rounded-full px-2 py-0.5 text-xs font-medium {importanceColors[
@@ -42,6 +42,7 @@
         {group.importance}
       </span>
     {/if}
+    <span class="flex-1"></span>
     <span
       class="rounded-full px-2 py-0.5 text-xs font-medium {labelColors[
         group.label
