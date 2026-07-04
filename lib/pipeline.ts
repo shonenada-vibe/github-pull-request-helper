@@ -53,6 +53,7 @@ export interface AnalysisOutcome {
 function modelLabel(settings: Settings): string {
   if (settings.provider === 'openai') return settings.openaiModel;
   if (settings.provider === 'carevie') return 'review-files';
+  if (settings.provider === 'local') return settings.localAgent;
   return settings.model;
 }
 

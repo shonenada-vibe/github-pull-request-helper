@@ -68,6 +68,33 @@ describe('requestGroupingForSettings', () => {
     expect(result.groups[0]?.files).toEqual(['a.ts']);
   });
 
+  it('routes to the local bridge via the OpenAI client when provider is local', async () => {
+    const openaiFetch = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify(grouping) } }] }),
+          { status: 200 },
+        ),
+    );
+
+    const result = await requestGroupingForSettings(
+      {
+        settings: { ...DEFAULT_SETTINGS, provider: 'local', localAgent: 'codex' },
+        system: 's',
+        userContent: 'u',
+        pr,
+      },
+      { openaiFetch: openaiFetch as unknown as typeof fetch },
+    );
+
+    expect(openaiFetch).toHaveBeenCalledOnce();
+    const call = openaiFetch.mock.calls[0]!;
+    expect(String(call[0])).toBe('http://127.0.0.1:8765/v1/chat/completions');
+    const body = JSON.parse(call[1]!.body as string);
+    expect(body.model).toBe('codex');
+    expect(result.intent).toBe('x');
+  });
+
   it('routes to the Carevie client (with PR coordinates) when provider is carevie', async () => {
     const anthropicCreate = vi.fn();
     const carevieFetch = vi.fn(

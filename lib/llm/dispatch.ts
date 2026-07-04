@@ -46,6 +46,21 @@ export function requestGroupingForSettings(
     );
   }
 
+  if (settings.provider === 'local') {
+    // The local bridge speaks the OpenAI chat-completions shape; the "model"
+    // selects which CLI agent it runs (claude or codex).
+    return openaiRequestGrouping(
+      {
+        apiKey: settings.localToken || 'local',
+        baseUrl: settings.localBaseUrl,
+        model: settings.localAgent,
+        system,
+        userContent,
+      },
+      deps.openaiFetch,
+    );
+  }
+
   if (settings.provider === 'carevie') {
     return carevieRequestGrouping(
       {

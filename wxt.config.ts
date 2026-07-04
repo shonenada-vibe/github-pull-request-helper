@@ -17,6 +17,9 @@ export default defineConfig({
       'https://api.anthropic.com/*',
       'https://api.openai.com/*',
       'https://carevie.dolpc.com/*',
+      // Local agent bridge (bridge/server.ts).
+      'http://127.0.0.1/*',
+      'http://localhost/*',
     ],
     // Custom OpenAI-compatible/Carevie base URLs (OpenRouter, Together, local
     // servers) are granted at runtime from the Options page on save.

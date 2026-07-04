@@ -74,6 +74,14 @@ describe('hasCredentials', () => {
     expect(hasCredentials({ ...base, anthropicApiKey: 'x' })).toBe(false);
   });
 
+  it('needs no API key for the local provider, just the bridge URL + agent', () => {
+    const base = { ...DEFAULT_SETTINGS, githubToken: 'a', provider: 'local' as const };
+    // Defaults (127.0.0.1 bridge, claude agent) are enough.
+    expect(hasCredentials(base)).toBe(true);
+    expect(hasCredentials({ ...base, localBaseUrl: '' })).toBe(false);
+    expect(hasCredentials({ ...base, localAgent: '' })).toBe(false);
+  });
+
   it('requires token + base URL for the carevie provider', () => {
     const base = { ...DEFAULT_SETTINGS, githubToken: 'a', provider: 'carevie' as const };
     // Default base URL is prefilled, so only the token is missing.

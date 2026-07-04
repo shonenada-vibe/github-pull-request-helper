@@ -2,7 +2,7 @@ import { browser } from 'wxt/browser';
 import type { Effort, Model } from './anthropic/client';
 import type { GroupingResult } from './grouping/types';
 
-export type Provider = 'anthropic' | 'openai' | 'carevie';
+export type Provider = 'anthropic' | 'openai' | 'carevie' | 'local';
 
 export interface Settings {
   githubToken: string;
@@ -23,6 +23,12 @@ export interface Settings {
   // Carevie review service (server-side analysis by PR coordinates)
   carevieToken: string;
   carevieBaseUrl: string;
+  // Local agent bridge (Claude Code / Codex via bridge/server.ts)
+  localBaseUrl: string;
+  /** Which agent the bridge should run: 'claude' or 'codex'. */
+  localAgent: string;
+  /** Matches the bridge's BRIDGE_TOKEN when set; optional. */
+  localToken: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +44,9 @@ export const DEFAULT_SETTINGS: Settings = {
   openaiModel: '',
   carevieToken: '',
   carevieBaseUrl: 'https://carevie.dolpc.com',
+  localBaseUrl: 'http://127.0.0.1:8765/v1',
+  localAgent: 'claude',
+  localToken: '',
 };
 
 const SETTINGS_KEY = 'settings';
@@ -67,6 +76,10 @@ export function hasCredentials(settings: Settings): boolean {
   }
   if (settings.provider === 'carevie') {
     return settings.carevieToken.length > 0 && settings.carevieBaseUrl.length > 0;
+  }
+  if (settings.provider === 'local') {
+    // The bridge needs no API key; the optional token is checked server-side.
+    return settings.localBaseUrl.length > 0 && settings.localAgent.length > 0;
   }
   return settings.anthropicApiKey.length > 0;
 }

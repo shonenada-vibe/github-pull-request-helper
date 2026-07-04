@@ -1,7 +1,7 @@
 # github-differ — developer commands
 # Bun-managed, local-only environment. See setup.sh.
 
-.PHONY: setup dev build test test:e2e lint typecheck format zip clean
+.PHONY: setup dev build bridge test test:e2e lint typecheck format zip clean
 
 setup: ## Install dependencies
 	./setup.sh
@@ -11,6 +11,9 @@ dev: ## Build the unpacked extension with HMR (Chrome MV3)
 
 build: ## Production build
 	bun run build
+
+bridge: ## Run the local-agent bridge (Claude Code / Codex) on 127.0.0.1:8765
+	bun bridge/server.ts
 
 test: ## Run unit tests (vitest)
 	bun run test

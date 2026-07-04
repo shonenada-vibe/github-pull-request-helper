@@ -12,6 +12,7 @@
     "components/**/*",
     "entrypoints/**/*",
     "tests/**/*",
+    "bridge/**/*",
     "*.ts",
     ".wxt/**/*"
   ],

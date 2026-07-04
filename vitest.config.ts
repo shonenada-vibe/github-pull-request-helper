@@ -12,6 +12,7 @@ export default defineConfig({
     include: [
       'lib/**/*.test.ts',
       'components/**/*.test.ts',
+      'bridge/**/*.test.ts',
       'tests/unit/**/*.test.ts',
     ],
   },

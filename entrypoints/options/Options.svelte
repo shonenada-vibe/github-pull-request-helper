@@ -37,6 +37,7 @@
     event.preventDefault();
     if (form.provider === 'openai') await ensureHostPermission(form.openaiBaseUrl);
     if (form.provider === 'carevie') await ensureHostPermission(form.carevieBaseUrl);
+    if (form.provider === 'local') await ensureHostPermission(form.localBaseUrl);
     await setSettings($state.snapshot(form));
     saved = true;
     setTimeout(() => (saved = false), 2000);
@@ -109,6 +110,7 @@
         <option value="anthropic">Anthropic (Claude)</option>
         <option value="openai">OpenAI-compatible</option>
         <option value="carevie">Carevie (review service)</option>
+        <option value="local">Local agent (Claude Code / Codex)</option>
       </select>
     </label>
 
@@ -193,6 +195,50 @@
             class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
           />
         </label>
+      </fieldset>
+    {:else if form.provider === 'local'}
+      <fieldset class="space-y-4 rounded border border-gray-200 p-4">
+        <legend class="px-1 text-xs font-semibold uppercase text-gray-500">
+          Local agent
+        </legend>
+        <label class="block">
+          <span class="text-sm font-medium">Agent</span>
+          <select
+            bind:value={form.localAgent}
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="claude">Claude Code (claude -p)</option>
+            <option value="codex">Codex (codex exec)</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Bridge URL</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            bind:value={form.localBaseUrl}
+            placeholder="http://127.0.0.1:8765/v1"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Bridge token (optional)</span>
+          <input
+            type="password"
+            autocomplete="off"
+            bind:value={form.localToken}
+            placeholder="matches BRIDGE_TOKEN"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+        </label>
+        <p class="text-xs text-gray-500">
+          Uses your logged-in CLI agent instead of a browser-held API key. Start
+          the bridge from the github-differ repo with
+          <code class="rounded bg-gray-100 px-1">make bridge</code>
+          (runs <code class="rounded bg-gray-100 px-1">bun bridge/server.ts</code>)
+          and keep it running while you review.
+        </p>
       </fieldset>
     {:else}
       <fieldset class="space-y-4 rounded border border-gray-200 p-4">

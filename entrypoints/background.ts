@@ -64,7 +64,9 @@ async function ungrantedProviderHost(settings: Settings): Promise<string | null>
       ? settings.openaiBaseUrl
       : settings.provider === 'carevie'
         ? settings.carevieBaseUrl
-        : null;
+        : settings.provider === 'local'
+          ? settings.localBaseUrl
+          : null;
   if (!baseUrl) return null;
   const pattern = originPattern(baseUrl);
   if (!pattern) return null;
