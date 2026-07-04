@@ -148,6 +148,31 @@ describe('runAnalysis', () => {
     expect(lines.join('\n')).toContain('cache hit (saved ');
   });
 
+  it('uses the customized system prompt, falling back to the default when blank', async () => {
+    const deps = makeDeps();
+    await runAnalysis(
+      {
+        owner: 'o',
+        repo: 'r',
+        number: 1,
+        settings: { ...settings, systemPrompt: 'You are a custom reviewer.' },
+      },
+      deps,
+    );
+    const custom = (deps.requestGrouping as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0];
+    expect(custom.system).toBe('You are a custom reviewer.');
+
+    const deps2 = makeDeps();
+    await runAnalysis(
+      { owner: 'o', repo: 'r', number: 1, settings: { ...settings, systemPrompt: '  ' } },
+      deps2,
+    );
+    const fallback = (deps2.requestGrouping as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0];
+    expect(fallback.system).toContain('senior code reviewer');
+  });
+
   it('includes the language in the system prompt and the cache key', async () => {
     const deps = makeDeps();
     await runAnalysis(

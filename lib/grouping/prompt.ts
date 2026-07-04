@@ -19,14 +19,18 @@ Your job:
 Be concise. Prefer a few meaningful groups over many tiny ones. Respond only with JSON matching the provided schema.`;
 
 /**
- * System prompt for a given output language. English returns the base prompt
+ * System prompt for a given output language, on top of `base` (the built-in
+ * prompt or a user override from the options). English returns the base
  * unchanged (keeps the provider-side prompt cache warm for the default).
  */
-export function buildSystemPrompt(languageCode: string): string {
+export function buildSystemPrompt(
+  languageCode: string,
+  base: string = SYSTEM_PROMPT,
+): string {
   const name = promptName(languageCode);
-  if (name === 'English') return SYSTEM_PROMPT;
+  if (name === 'English') return base;
   return (
-    `${SYSTEM_PROMPT}\n\n` +
+    `${base}\n\n` +
     `Write every human-readable string (intent, group titles, rationales, reading-order reasons) in ${name}. ` +
     'Keep group ids and file paths exactly as they appear in the diff.'
   );

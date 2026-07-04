@@ -10,6 +10,7 @@
   } from '../../lib/storage';
   import { MODELS } from '../../lib/anthropic/client';
   import { LANGUAGES } from '../../lib/language';
+  import { SYSTEM_PROMPT } from '../../lib/grouping/prompt';
   import { originPattern } from '../../lib/host-permission';
 
   let form = $state<Settings>({ ...DEFAULT_SETTINGS });
@@ -46,6 +47,12 @@
   async function clearCache() {
     clearedCount = await clearGroupingCache();
     setTimeout(() => (clearedCount = null), 3000);
+  }
+
+  const promptIsDefault = $derived(form.systemPrompt.trim() === SYSTEM_PROMPT);
+
+  function resetPrompts() {
+    form.systemPrompt = SYSTEM_PROMPT;
   }
 </script>
 
@@ -288,6 +295,44 @@
         </label>
       </fieldset>
     {/if}
+
+    <fieldset class="space-y-3 rounded border border-gray-200 p-4">
+      <legend class="px-1 text-xs font-semibold uppercase text-gray-500">
+        Prompts
+      </legend>
+      <label class="block">
+        <span class="flex items-center gap-2">
+          <span class="flex-1 text-sm font-medium">
+            System prompt
+            {#if !promptIsDefault}
+              <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                customized
+              </span>
+            {/if}
+          </span>
+          <button
+            type="button"
+            class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 disabled:opacity-50"
+            disabled={promptIsDefault}
+            onclick={resetPrompts}
+          >
+            Reset all prompts
+          </button>
+        </span>
+        <textarea
+          bind:value={form.systemPrompt}
+          rows="14"
+          spellcheck="false"
+          class="mt-2 w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs leading-relaxed"
+        ></textarea>
+        <span class="mt-1 block text-xs text-gray-500">
+          Sent as the system prompt for every analysis. The output-language
+          instruction and the PR content (title, description, diffs) are appended
+          automatically. Cached results keep their old prompt — force-refresh
+          (↻) a PR to re-analyze with your changes.
+        </span>
+      </label>
+    </fieldset>
 
     <div class="flex items-center gap-3">
       <button

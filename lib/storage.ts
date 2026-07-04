@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import type { Effort, Model } from './anthropic/client';
 import type { GroupingResult } from './grouping/types';
+import { SYSTEM_PROMPT } from './grouping/prompt';
 
 export type Provider = 'anthropic' | 'openai' | 'carevie' | 'local';
 
@@ -14,6 +15,8 @@ export interface Settings {
   autoReviewMode: boolean;
   /** Start analysis automatically when opening a PR's Files changed tab. */
   autoAnalyze: boolean;
+  /** The grouping system prompt; editable in the options, reset to default. */
+  systemPrompt: string;
   // Anthropic
   anthropicApiKey: string;
   model: Model;
@@ -39,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'en',
   autoReviewMode: true,
   autoAnalyze: false,
+  systemPrompt: SYSTEM_PROMPT,
   anthropicApiKey: '',
   model: 'claude-opus-4-8',
   effort: 'medium',

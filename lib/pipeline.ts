@@ -3,7 +3,7 @@ import { groupingCacheKey, type Settings, type CachedAnalysis } from './storage'
 import type { GroupingResponse, GroupingResult, Group } from './grouping/types';
 import type { RequestGroupingArgs } from './llm/dispatch';
 import { partitionFiles, type ClassifiedFile } from './heuristics/classify';
-import { buildSystemPrompt, buildUserContent } from './grouping/prompt';
+import { buildSystemPrompt, buildUserContent, SYSTEM_PROMPT } from './grouping/prompt';
 
 const MECHANICAL_GROUP_ID = 'mechanical';
 
@@ -177,7 +177,9 @@ export async function runAnalysis(
     };
   } else {
     usedLlm = true;
-    const system = buildSystemPrompt(settings.language);
+    const base = settings.systemPrompt.trim() || SYSTEM_PROMPT;
+    if (base !== SYSTEM_PROMPT) trace('using a customized system prompt');
+    const system = buildSystemPrompt(settings.language, base);
     const userContent = buildUserContent(pr, interesting);
     trace(`prompt: ${system.length} chars system, ${userContent.length} chars user`);
     response = await timed(
