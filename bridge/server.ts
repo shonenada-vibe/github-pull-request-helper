@@ -36,6 +36,30 @@ function truncate(text: string, max = 2000): string {
   return text.length <= max ? text : `${text.slice(0, max)}… (+${text.length - max} chars)`;
 }
 
+/** Buffer chunks and emit complete lines (truncated) as they arrive. */
+function lineStreamer(emit: (line: string) => void): {
+  write: (chunk: Buffer) => void;
+  flush: () => void;
+} {
+  let buffer = '';
+  const emitLine = (line: string) => {
+    const trimmed = line.trimEnd();
+    if (trimmed) emit(truncate(trimmed, 300));
+  };
+  return {
+    write(chunk) {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) emitLine(line);
+    },
+    flush() {
+      emitLine(buffer);
+      buffer = '';
+    },
+  };
+}
+
 /** Startup probe: which agent CLIs are actually on PATH? */
 function probeAgent(bin: string): Promise<string> {
   return new Promise((resolve) => {
@@ -65,14 +89,36 @@ function runAgent(tag: string, model: string, prompt: string): Promise<string> {
     log(tag, `agent pid ${proc.pid ?? '?'}, timeout ${TIMEOUT_MS}ms`);
     let out = '';
     let err = '';
+    // Agents narrate progress on stderr — stream it live so long runs are
+    // visible. Stdout (the answer) streams too under BRIDGE_VERBOSE=1.
+    const errLog = lineStreamer((line) => log(tag, `agent!  ${line}`));
+    const outLog = lineStreamer((line) => log(tag, `agent>  ${line}`));
     const timer = setTimeout(() => {
       proc.kill('SIGKILL');
       reject(new Error(`${argv[0]} timed out after ${TIMEOUT_MS}ms`));
     }, TIMEOUT_MS);
-    proc.stdout.on('data', (d: Buffer) => (out += d));
-    proc.stderr.on('data', (d: Buffer) => (err += d));
-    proc.on('error', (e) => {
+    const heartbeat = setInterval(() => {
+      log(
+        tag,
+        `agent still running — ${Math.round((Date.now() - startedAt) / 1000)}s elapsed, stdout ${out.length}B, stderr ${err.length}B`,
+      );
+    }, 15_000);
+    proc.stdout.on('data', (d: Buffer) => {
+      out += d;
+      if (VERBOSE) outLog.write(d);
+    });
+    proc.stderr.on('data', (d: Buffer) => {
+      err += d;
+      errLog.write(d);
+    });
+    const cleanup = () => {
       clearTimeout(timer);
+      clearInterval(heartbeat);
+      errLog.flush();
+      if (VERBOSE) outLog.flush();
+    };
+    proc.on('error', (e) => {
+      cleanup();
       reject(
         new Error(
           `could not start "${argv[0]}" — is the CLI installed and on PATH? (${e.message})`,
@@ -80,16 +126,12 @@ function runAgent(tag: string, model: string, prompt: string): Promise<string> {
       );
     });
     proc.on('close', (code) => {
-      clearTimeout(timer);
+      cleanup();
       const elapsed = Date.now() - startedAt;
       log(
         tag,
         `agent exited ${code} after ${elapsed}ms — stdout ${out.length} chars, stderr ${err.length} chars`,
       );
-      if (err.trim() && (VERBOSE || code !== 0)) {
-        log(tag, `stderr: ${truncate(err.trim(), 800)}`);
-      }
-      if (VERBOSE) log(tag, `stdout: ${truncate(out.trim())}`);
       if (code === 0) resolve(out);
       else reject(new Error(`${argv[0]} exited ${code}: ${err.slice(0, 500)}`));
     });
