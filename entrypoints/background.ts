@@ -6,7 +6,14 @@ import {
   type AnalyzeResponse,
   type ErrorKind,
 } from '../lib/messaging';
-import { getSettings, hasCredentials, getCachedGrouping, setCachedGrouping } from '../lib/storage';
+import {
+  getSettings,
+  hasCredentials,
+  getCachedGrouping,
+  setCachedGrouping,
+  type Settings,
+} from '../lib/storage';
+import { originPattern } from '../lib/host-permission';
 import { fetchPullRequest, GithubApiError } from '../lib/github/client';
 import { AnthropicError } from '../lib/anthropic/client';
 import { OpenAIError } from '../lib/openai/client';
@@ -41,6 +48,31 @@ function toErrorResponse(err: unknown): AnalyzeResponse {
   };
 }
 
+/**
+ * The active provider's base-URL host permission, if it has NOT been granted.
+ * Catches the common "manifest gained a host but the extension wasn't
+ * reloaded / the grant was declined" case before it surfaces as an opaque
+ * "Failed to fetch".
+ */
+async function ungrantedProviderHost(settings: Settings): Promise<string | null> {
+  const baseUrl =
+    settings.provider === 'openai'
+      ? settings.openaiBaseUrl
+      : settings.provider === 'carevie'
+        ? settings.carevieBaseUrl
+        : null;
+  if (!baseUrl) return null;
+  const pattern = originPattern(baseUrl);
+  if (!pattern) return null;
+  try {
+    return (await browser.permissions.contains({ origins: [pattern] }))
+      ? null
+      : pattern;
+  } catch {
+    return null; // Can't check — let the request itself report the failure.
+  }
+}
+
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message: unknown) => {
     if (isOpenOptionsRequest(message)) {
@@ -56,6 +88,17 @@ export default defineBackground(() => {
         type: 'ERROR',
         error: 'Add a GitHub token and your LLM provider credentials in the extension options.',
         kind: 'missing-credentials',
+      };
+    }
+
+    const ungranted = await ungrantedProviderHost(settings);
+    if (ungranted) {
+      return {
+        type: 'ERROR',
+        error:
+          `The extension does not have permission to call ${ungranted}. ` +
+          'Re-save the extension options to grant it (or reload the extension if it was just updated).',
+        kind: settings.provider === 'carevie' ? 'carevie' : 'openai',
       };
     }
 

@@ -42,3 +42,15 @@ so unlike Anthropic/OpenAI it takes PR coordinates instead of a prompt.
   follow-up task and add a mapper in `parseCarevieBody`.
 - The GitHub PR is still fetched locally (for classification, the mechanical
   fold-away, and head-SHA caching) even though Carevie re-fetches server-side.
+
+## Addendum (same day) — "Failed to fetch" diagnosis (e05facf)
+
+First live run failed with `Error (unknown): Failed to fetch` — a network-level
+TypeError, most likely because the loaded extension predated the manifest's new
+`carevie.dolpc.com` host permission, so the background fetch died on CORS.
+Hardened in three places:
+- background pre-checks the active provider's host permission and returns a
+  "re-save options / reload the extension" error naming the missing origin;
+- GitHub/OpenAI/Carevie clients wrap network-level rejections into their typed
+  errors, naming the unreachable origin (GitHub uses status 0).
+77 tests green; typecheck/lint/build clean.

@@ -100,6 +100,19 @@ describe('requestGrouping', () => {
     });
   });
 
+  it('wraps a network-level failure with the host and a permission hint', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const err = await requestGrouping(
+      params,
+      fetchMock as unknown as typeof fetch,
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CarevieError);
+    expect((err as CarevieError).message).toContain('https://carevie.dolpc.com');
+    expect((err as CarevieError).message).toContain('Failed to fetch');
+  });
+
   it('flags 429 as rate limited', async () => {
     const fetchMock = mockFetch('slow down', 429);
     const err = await requestGrouping(

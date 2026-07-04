@@ -92,4 +92,23 @@ describe('requestGrouping', () => {
       ),
     ).rejects.toMatchObject({ rateLimited: true } satisfies Partial<OpenAIError>);
   });
+
+  it('wraps a network-level failure with the host and a permission hint', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const err = await requestGrouping(
+      {
+        apiKey: 'k',
+        baseUrl: 'https://api.example.com/v1',
+        model: 'm',
+        system: 's',
+        userContent: 'u',
+      },
+      fetchMock as unknown as typeof fetch,
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(OpenAIError);
+    expect((err as OpenAIError).message).toContain('https://api.example.com');
+    expect((err as OpenAIError).message).toContain('Failed to fetch');
+  });
 });

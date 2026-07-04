@@ -81,10 +81,22 @@ export async function requestGrouping(
   params: CarevieReviewParams,
   fetchImpl: typeof fetch = fetch,
 ): Promise<GroupingResponse> {
-  const res = await fetchImpl(reviewFilesUrl(params), {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${params.token}` },
-  });
+  const url = reviewFilesUrl(params);
+  let res: Response;
+  try {
+    res = await fetchImpl(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.token}` },
+    });
+  } catch (err) {
+    // Network-level failure (no response): unreachable host, or the extension
+    // lacks the host permission so the request died on CORS.
+    throw new CarevieError(
+      `Could not reach ${new URL(url).origin} (${String(err)}). ` +
+        'Check the extension has access to this host (re-save the options to grant it, ' +
+        'or reload the extension after an update) and that the service is up.',
+    );
+  }
 
   if (!res.ok) {
     throw new CarevieError(

@@ -52,24 +52,36 @@ export async function requestGrouping(
   params: OpenAIGroupingParams,
   fetchImpl: typeof fetch = fetch,
 ): Promise<GroupingResponse> {
-  const res = await fetchImpl(chatCompletionsUrl(params.baseUrl), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${params.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: params.model,
-      messages: [
-        { role: 'system', content: params.system },
-        { role: 'user', content: params.userContent },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: { name: 'pr_grouping', strict: true, schema: GROUPING_SCHEMA },
+  const url = chatCompletionsUrl(params.baseUrl);
+  let res: Response;
+  try {
+    res = await fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${params.apiKey}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: params.model,
+        messages: [
+          { role: 'system', content: params.system },
+          { role: 'user', content: params.userContent },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'pr_grouping', strict: true, schema: GROUPING_SCHEMA },
+        },
+      }),
+    });
+  } catch (err) {
+    // Network-level failure (no response): unreachable host, or the extension
+    // lacks the host permission so the request died on CORS.
+    throw new OpenAIError(
+      `Could not reach ${new URL(url).origin} (${String(err)}). ` +
+        'Check the extension has access to this host (re-save the options to grant it) ' +
+        'and that the server is up.',
+    );
+  }
 
   if (!res.ok) {
     throw new OpenAIError(

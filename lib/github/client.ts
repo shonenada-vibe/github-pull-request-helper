@@ -80,13 +80,20 @@ async function ghGet(
   accept: string,
   fetchImpl: FetchImpl,
 ): Promise<Response> {
-  const res = await fetchImpl(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: accept,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetchImpl(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: accept,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+  } catch (err) {
+    // Network-level failure (no response) — status 0 so it isn't mistaken for
+    // an HTTP error from GitHub.
+    throw new GithubApiError(`Could not reach the GitHub API (${String(err)})`, 0);
+  }
   if (!res.ok) {
     const rateLimited =
       res.status === 403 && res.headers.get('X-RateLimit-Remaining') === '0';
