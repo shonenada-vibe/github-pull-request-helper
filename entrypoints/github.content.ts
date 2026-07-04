@@ -2,6 +2,7 @@ import { defineContentScript, createShadowRootUi } from '#imports';
 import { mount, unmount } from 'svelte';
 import Panel from '../components/Panel.svelte';
 import { panelState, resetForLoading, pushLog } from '../components/panel-state.svelte';
+import { disableReviewMode } from '../components/review-mode';
 import { sendAnalyze, sendOpenOptions } from '../lib/messaging';
 import { parsePrPath, isFilesTab, type PrLocation } from '../lib/pr-url';
 import '../assets/tailwind.css';
@@ -79,6 +80,9 @@ export default defineContentScript({
           void analyze(loc);
         }
       } else {
+        // Left the files tab — drop any DOM rearrangement (likely stale anyway).
+        disableReviewMode();
+        panelState.reviewMode = false;
         panelState.visible = false;
         current = null;
       }

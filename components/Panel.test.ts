@@ -3,11 +3,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import Panel from './Panel.svelte';
 import { panelState } from './panel-state.svelte';
+import { disableReviewMode } from './review-mode';
 import type { GroupingResult } from '../lib/grouping/types';
 
 function reset() {
+  disableReviewMode();
   panelState.visible = false;
   panelState.collapsed = false;
+  panelState.reviewMode = false;
   panelState.status = 'idle';
   panelState.result = undefined;
   panelState.error = undefined;
@@ -100,6 +103,38 @@ describe('Panel', () => {
     // Raw output auto-expands because a detail was captured.
     expect(getByText(/Raw model output/)).toBeTruthy();
     expect(getByText(/"path":"src\/a.ts"/)).toBeTruthy();
+  });
+
+  it('toggles Review Mode: rearranges the page and restores it', async () => {
+    document.body.innerHTML = `
+      <div data-path="bun.lockb">lock</div>
+      <div data-path="src/limiter.ts">core diff</div>
+    `;
+    panelState.visible = true;
+    panelState.status = 'ready';
+    panelState.result = result;
+
+    const { getByRole } = render(Panel);
+    const toggle = getByRole('button', { name: /review mode/i });
+
+    await fireEvent.click(toggle);
+    expect(panelState.reviewMode).toBe(true);
+    const paths = () =>
+      [...document.querySelectorAll('[data-path]')].map((el) =>
+        el.getAttribute('data-path'),
+      );
+    // Reading order puts the behavioral group before mechanical.
+    expect(paths()).toEqual(['src/limiter.ts', 'bun.lockb']);
+    expect(
+      document.querySelectorAll('[data-github-differ="group-header"]').length,
+    ).toBeGreaterThan(0);
+
+    await fireEvent.click(toggle);
+    expect(panelState.reviewMode).toBe(false);
+    expect(paths()).toEqual(['bun.lockb', 'src/limiter.ts']);
+    expect(
+      document.querySelectorAll('[data-github-differ="group-header"]'),
+    ).toHaveLength(0);
   });
 
   it('collapses to a reopen pill and expands back', async () => {

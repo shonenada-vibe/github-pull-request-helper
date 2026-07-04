@@ -1,5 +1,6 @@
 import type { GroupingResult } from '../lib/grouping/types';
 import type { ErrorKind, DebugInfo } from '../lib/messaging';
+import { disableReviewMode } from './review-mode';
 
 export type PanelStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -8,6 +9,8 @@ export interface PanelState {
   visible: boolean;
   /** User preference: collapsed to the small reopen pill. Survives navigation. */
   collapsed: boolean;
+  /** True while Review Mode has rearranged the GitHub file list. */
+  reviewMode: boolean;
   status: PanelStatus;
   result?: GroupingResult;
   fromCache: boolean;
@@ -29,6 +32,7 @@ export interface PanelState {
 export const panelState: PanelState = $state({
   visible: false,
   collapsed: false,
+  reviewMode: false,
   status: 'idle',
   fromCache: false,
   logs: [],
@@ -42,6 +46,9 @@ export function pushLog(line: string): void {
 }
 
 export function resetForLoading(): void {
+  // A new analysis (or navigation) invalidates any rearranged file list.
+  disableReviewMode();
+  panelState.reviewMode = false;
   panelState.visible = true;
   panelState.status = 'loading';
   panelState.result = undefined;

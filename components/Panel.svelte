@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { panelState } from './panel-state.svelte';
+  import { panelState, pushLog } from './panel-state.svelte';
   import GroupCard from './GroupCard.svelte';
   import { scrollToFile } from './scroll-to-file';
+  import { enableReviewMode, disableReviewMode } from './review-mode';
   import type { Group } from '../lib/grouping/types';
 
   const result = $derived(panelState.result);
@@ -71,6 +72,21 @@
     const text = panelState.logs.join('\n');
     void navigator.clipboard?.writeText(text);
   }
+
+  function toggleReviewMode() {
+    if (panelState.reviewMode) {
+      disableReviewMode();
+      panelState.reviewMode = false;
+      pushLog('Review mode off — restored the default GitHub file order.');
+    } else if (result) {
+      if (enableReviewMode(result)) {
+        panelState.reviewMode = true;
+        pushLog('Review mode on — files grouped and sorted by the analysis.');
+      } else {
+        pushLog('Review mode: no file diff elements found on this page.');
+      }
+    }
+  }
 </script>
 
 {#if panelState.visible && panelState.collapsed}
@@ -95,6 +111,20 @@
       class="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2"
     >
       <span class="flex-1 font-semibold text-gray-900">github-differ</span>
+      {#if panelState.status === 'ready' && result}
+        <button
+          type="button"
+          class="rounded px-2 py-1 text-xs font-medium {panelState.reviewMode
+            ? 'bg-sky-600 text-white hover:bg-sky-700'
+            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'}"
+          title={panelState.reviewMode
+            ? 'Back to the default GitHub file order'
+            : 'Group and sort the diffs on the page by the analysis'}
+          onclick={toggleReviewMode}
+        >
+          Review mode{panelState.reviewMode ? ' ✓' : ''}
+        </button>
+      {/if}
       {#if panelState.fromCache}
         <span
           class="text-xs text-gray-400"
