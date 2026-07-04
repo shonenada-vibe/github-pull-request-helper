@@ -90,6 +90,21 @@
       <span class="flex items-center gap-2">
         <input
           type="checkbox"
+          bind:checked={form.autoAnalyze}
+          class="h-4 w-4 rounded border-gray-300"
+        />
+        <span class="text-sm font-medium">Auto analyse</span>
+      </span>
+      <span class="mt-1 block text-xs text-gray-500">
+        Start analyzing as soon as you open a PR's Files changed tab. When off,
+        the panel shows an "Analyze pull request" button instead.
+      </span>
+    </label>
+
+    <label class="block">
+      <span class="flex items-center gap-2">
+        <input
+          type="checkbox"
           bind:checked={form.autoReviewMode}
           class="h-4 w-4 rounded border-gray-300"
         />

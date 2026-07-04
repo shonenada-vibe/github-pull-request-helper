@@ -157,7 +157,21 @@
     </header>
 
     <div class="flex-1 overflow-y-auto p-3">
-      {#if panelState.status === 'loading'}
+      {#if panelState.status === 'idle'}
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">
+            Analyze this pull request to get the intent, grouped diffs, and a
+            suggested reading order.
+          </p>
+          <button
+            type="button"
+            class="rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
+            onclick={() => panelState.onAnalyze?.()}
+          >
+            Analyze pull request
+          </button>
+        </div>
+      {:else if panelState.status === 'loading'}
         <p class="animate-pulse text-sm text-gray-500">Analyzing pull request…</p>
       {:else if panelState.status === 'error'}
         <div class="space-y-3">

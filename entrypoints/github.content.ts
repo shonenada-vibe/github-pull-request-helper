@@ -107,13 +107,31 @@ export default defineContentScript({
     panelState.onRefresh = () => {
       if (current) void analyze(current, true);
     };
+    panelState.onAnalyze = () => {
+      if (current) void analyze(current);
+    };
+
+    /** Auto-analyze when opted in; otherwise park the panel on its Analyze button. */
+    async function enterPr(loc: PrLocation) {
+      current = loc;
+      const settings = await getSettings();
+      if (settings.autoAnalyze) {
+        void analyze(loc);
+        return;
+      }
+      resetForLoading();
+      panelState.status = 'idle';
+      pushLog(
+        `Ready to analyze ${loc.owner}/${loc.repo}#${loc.number} — auto analyse is off.`,
+      );
+    }
 
     function evaluateLocation() {
       const loc = parsePrPath(window.location.pathname);
       if (loc && isFilesTab(window.location.pathname)) {
         // Only re-run when the PR actually changed.
         if (!current || current.number !== loc.number || current.repo !== loc.repo) {
-          void analyze(loc);
+          void enterPr(loc);
         }
       } else {
         // Left the files tab — drop any DOM rearrangement (likely stale anyway).

@@ -20,6 +20,7 @@ function reset() {
   panelState.debug = undefined;
   panelState.logs = [];
   panelState.onRefresh = undefined;
+  panelState.onAnalyze = undefined;
   panelState.onOpenOptions = undefined;
 }
 
@@ -55,6 +56,17 @@ describe('Panel', () => {
   it('renders nothing when hidden', () => {
     const { container } = render(Panel);
     expect(container.textContent).not.toContain('github-differ');
+  });
+
+  it('offers an Analyze button in the idle state and wires the callback', async () => {
+    const onAnalyze = vi.fn();
+    panelState.visible = true;
+    panelState.status = 'idle';
+    panelState.onAnalyze = onAnalyze;
+
+    const { getByRole } = render(Panel);
+    await fireEvent.click(getByRole('button', { name: /analyze pull request/i }));
+    expect(onAnalyze).toHaveBeenCalledOnce();
   });
 
   it('shows a loading state', () => {

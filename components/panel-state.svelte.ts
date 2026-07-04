@@ -24,6 +24,8 @@ export interface PanelState {
   logs: string[];
   /** Set by the content script; called when the user clicks "Refresh". */
   onRefresh?: () => void;
+  /** Set by the content script; starts analysis from the idle state. */
+  onAnalyze?: () => void;
   /** Set by the content script; opens the extension Options page. */
   onOpenOptions?: () => void;
 }

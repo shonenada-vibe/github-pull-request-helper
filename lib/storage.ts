@@ -12,6 +12,8 @@ export interface Settings {
   language: string;
   /** Automatically enable Review Mode (grouped file list) after analysis. */
   autoReviewMode: boolean;
+  /** Start analysis automatically when opening a PR's Files changed tab. */
+  autoAnalyze: boolean;
   // Anthropic
   anthropicApiKey: string;
   model: Model;
@@ -36,6 +38,7 @@ export const DEFAULT_SETTINGS: Settings = {
   provider: 'anthropic',
   language: 'en',
   autoReviewMode: true,
+  autoAnalyze: false,
   anthropicApiKey: '',
   model: 'claude-opus-4-8',
   effort: 'medium',
