@@ -2,7 +2,7 @@ import { browser } from 'wxt/browser';
 import type { Effort, Model } from './anthropic/client';
 import type { GroupingResult } from './grouping/types';
 
-export type Provider = 'anthropic' | 'openai';
+export type Provider = 'anthropic' | 'openai' | 'carevie';
 
 export interface Settings {
   githubToken: string;
@@ -16,6 +16,9 @@ export interface Settings {
   openaiApiKey: string;
   openaiBaseUrl: string;
   openaiModel: string;
+  // Carevie review service (server-side analysis by PR coordinates)
+  carevieToken: string;
+  carevieBaseUrl: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -27,6 +30,8 @@ export const DEFAULT_SETTINGS: Settings = {
   openaiApiKey: '',
   openaiBaseUrl: 'https://api.openai.com/v1',
   openaiModel: '',
+  carevieToken: '',
+  carevieBaseUrl: 'https://carevie.dolpc.com',
 };
 
 const SETTINGS_KEY = 'settings';
@@ -50,6 +55,9 @@ export function hasCredentials(settings: Settings): boolean {
       settings.openaiBaseUrl.length > 0 &&
       settings.openaiModel.length > 0
     );
+  }
+  if (settings.provider === 'carevie') {
+    return settings.carevieToken.length > 0 && settings.carevieBaseUrl.length > 0;
   }
   return settings.anthropicApiKey.length > 0;
 }

@@ -91,7 +91,12 @@ export async function runAnalysis(
   const { interesting, mechanical } = partitionFiles(pr.files);
   const baseDiagnostics = {
     provider: settings.provider,
-    model: settings.provider === 'openai' ? settings.openaiModel : settings.model,
+    model:
+      settings.provider === 'openai'
+        ? settings.openaiModel
+        : settings.provider === 'carevie'
+          ? 'review-files'
+          : settings.model,
     totalFiles: pr.files.length,
     interesting: interesting.length,
     mechanical: mechanical.length,
@@ -125,6 +130,7 @@ export async function runAnalysis(
       settings,
       system: SYSTEM_PROMPT,
       userContent: buildUserContent(pr, interesting),
+      pr: { owner, repo, number },
     });
   }
 

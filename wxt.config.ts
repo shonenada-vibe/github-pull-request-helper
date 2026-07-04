@@ -16,9 +16,10 @@ export default defineConfig({
       'https://api.github.com/*',
       'https://api.anthropic.com/*',
       'https://api.openai.com/*',
+      'https://carevie.dolpc.com/*',
     ],
-    // Custom OpenAI-compatible base URLs (OpenRouter, Together, local servers)
-    // are granted at runtime from the Options page when the user saves them.
+    // Custom OpenAI-compatible/Carevie base URLs (OpenRouter, Together, local
+    // servers) are granted at runtime from the Options page on save.
     optional_host_permissions: ['https://*/*', 'http://*/*'],
   },
 });

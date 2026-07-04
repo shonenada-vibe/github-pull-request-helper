@@ -10,6 +10,7 @@ import { getSettings, hasCredentials, getCachedGrouping, setCachedGrouping } fro
 import { fetchPullRequest, GithubApiError } from '../lib/github/client';
 import { AnthropicError } from '../lib/anthropic/client';
 import { OpenAIError } from '../lib/openai/client';
+import { CarevieError } from '../lib/carevie/client';
 import { GroupingValidationError } from '../lib/grouping/validate';
 import { requestGroupingForSettings } from '../lib/llm/dispatch';
 import { runAnalysis } from '../lib/pipeline';
@@ -23,6 +24,8 @@ function toErrorResponse(err: unknown): AnalyzeResponse {
     kind = err.rateLimited ? 'rate-limit' : 'github';
   } else if (err instanceof OpenAIError) {
     kind = err.rateLimited ? 'rate-limit' : 'openai';
+  } else if (err instanceof CarevieError) {
+    kind = err.rateLimited ? 'rate-limit' : 'carevie';
   } else if (err instanceof AnthropicError) {
     kind = err.status === 429 ? 'rate-limit' : 'anthropic';
   } else if (err instanceof GroupingValidationError) {

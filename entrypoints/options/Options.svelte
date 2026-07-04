@@ -19,8 +19,8 @@
     form = await getSettings();
   });
 
-  async function ensureOpenAiHostPermission() {
-    const pattern = originPattern(form.openaiBaseUrl);
+  async function ensureHostPermission(baseUrl: string) {
+    const pattern = originPattern(baseUrl);
     if (!pattern) return;
     try {
       const has = await browser.permissions.contains({ origins: [pattern] });
@@ -32,7 +32,8 @@
 
   async function save(event: Event) {
     event.preventDefault();
-    if (form.provider === 'openai') await ensureOpenAiHostPermission();
+    if (form.provider === 'openai') await ensureHostPermission(form.openaiBaseUrl);
+    if (form.provider === 'carevie') await ensureHostPermission(form.carevieBaseUrl);
     await setSettings($state.snapshot(form));
     saved = true;
     setTimeout(() => (saved = false), 2000);
@@ -69,6 +70,7 @@
       >
         <option value="anthropic">Anthropic (Claude)</option>
         <option value="openai">OpenAI-compatible</option>
+        <option value="carevie">Carevie (review service)</option>
       </select>
     </label>
 
@@ -112,7 +114,7 @@
           </label>
         </div>
       </fieldset>
-    {:else}
+    {:else if form.provider === 'openai'}
       <fieldset class="space-y-4 rounded border border-gray-200 p-4">
         <legend class="px-1 text-xs font-semibold uppercase text-gray-500">
           OpenAI-compatible
@@ -152,6 +154,38 @@
             placeholder="gpt-4o-mini"
             class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
           />
+        </label>
+      </fieldset>
+    {:else}
+      <fieldset class="space-y-4 rounded border border-gray-200 p-4">
+        <legend class="px-1 text-xs font-semibold uppercase text-gray-500">
+          Carevie
+        </legend>
+        <label class="block">
+          <span class="text-sm font-medium">API token</span>
+          <input
+            type="password"
+            autocomplete="off"
+            bind:value={form.carevieToken}
+            placeholder="Bearer token"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Base URL</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            bind:value={form.carevieBaseUrl}
+            placeholder="https://carevie.dolpc.com"
+            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          />
+          <span class="mt-1 block text-xs text-gray-500">
+            The service analyzes the PR server-side from its coordinates — no model
+            or prompt configuration needed. You'll be asked to grant access to this
+            host on save.
+          </span>
         </label>
       </fieldset>
     {/if}

@@ -11,6 +11,8 @@ const grouping = {
   readingOrder: [{ groupId: 'g1', reason: 'only' }],
 };
 
+const pr = { owner: 'o', repo: 'r', number: 1 };
+
 describe('requestGroupingForSettings', () => {
   it('routes to the Anthropic client when provider is anthropic', async () => {
     const anthropicCreate = vi.fn(async () => ({
@@ -23,6 +25,7 @@ describe('requestGroupingForSettings', () => {
         settings: { ...DEFAULT_SETTINGS, provider: 'anthropic', anthropicApiKey: 'k' },
         system: 's',
         userContent: 'u',
+        pr,
       },
       { anthropicCreate, openaiFetch: openaiFetch as unknown as typeof fetch },
     );
@@ -52,6 +55,7 @@ describe('requestGroupingForSettings', () => {
         },
         system: 's',
         userContent: 'u',
+        pr,
       },
       {
         anthropicCreate: anthropicCreate as never,
@@ -62,5 +66,37 @@ describe('requestGroupingForSettings', () => {
     expect(openaiFetch).toHaveBeenCalledOnce();
     expect(anthropicCreate).not.toHaveBeenCalled();
     expect(result.groups[0]?.files).toEqual(['a.ts']);
+  });
+
+  it('routes to the Carevie client (with PR coordinates) when provider is carevie', async () => {
+    const anthropicCreate = vi.fn();
+    const carevieFetch = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(JSON.stringify(grouping), { status: 200 }),
+    );
+
+    const result = await requestGroupingForSettings(
+      {
+        settings: {
+          ...DEFAULT_SETTINGS,
+          provider: 'carevie',
+          carevieToken: 'tok',
+        },
+        system: 's',
+        userContent: 'u',
+        pr: { owner: 'sundayfun', repo: 'siuper-tools', number: 20 },
+      },
+      {
+        anthropicCreate: anthropicCreate as never,
+        carevieFetch: carevieFetch as unknown as typeof fetch,
+      },
+    );
+
+    expect(carevieFetch).toHaveBeenCalledOnce();
+    expect(anthropicCreate).not.toHaveBeenCalled();
+    const url = String(carevieFetch.mock.calls[0]![0]);
+    expect(url).toContain('repo=sundayfun%2Fsiuper-tools');
+    expect(url).toContain('pr=20');
+    expect(result.intent).toBe('x');
   });
 });

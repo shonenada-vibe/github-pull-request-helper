@@ -40,6 +40,7 @@ export type ErrorKind =
   | 'rate-limit'
   | 'anthropic'
   | 'openai'
+  | 'carevie'
   | 'unknown';
 
 /** Content script -> background: open the extension Options page. */

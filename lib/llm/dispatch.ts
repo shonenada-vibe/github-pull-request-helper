@@ -5,11 +5,14 @@ import {
   type CreateMessageFn,
 } from '../anthropic/client';
 import { requestGrouping as openaiRequestGrouping } from '../openai/client';
+import { requestGrouping as carevieRequestGrouping } from '../carevie/client';
 
 export interface RequestGroupingArgs {
   settings: Settings;
   system: string;
   userContent: string;
+  /** PR coordinates, for providers (Carevie) that analyze server-side. */
+  pr: { owner: string; repo: string; number: number };
 }
 
 /** Injectable transport hooks so the dispatcher is testable without the network. */
@@ -18,6 +21,8 @@ export interface DispatchDeps {
   anthropicCreate?: CreateMessageFn;
   /** OpenAI-compatible fetch override. */
   openaiFetch?: typeof fetch;
+  /** Carevie fetch override. */
+  carevieFetch?: typeof fetch;
 }
 
 /**
@@ -25,7 +30,7 @@ export interface DispatchDeps {
  * it does not know or care which backend is in use.
  */
 export function requestGroupingForSettings(
-  { settings, system, userContent }: RequestGroupingArgs,
+  { settings, system, userContent, pr }: RequestGroupingArgs,
   deps: DispatchDeps = {},
 ): Promise<GroupingResponse> {
   if (settings.provider === 'openai') {
@@ -38,6 +43,19 @@ export function requestGroupingForSettings(
         userContent,
       },
       deps.openaiFetch,
+    );
+  }
+
+  if (settings.provider === 'carevie') {
+    return carevieRequestGrouping(
+      {
+        token: settings.carevieToken,
+        baseUrl: settings.carevieBaseUrl,
+        owner: pr.owner,
+        repo: pr.repo,
+        number: pr.number,
+      },
+      deps.carevieFetch,
     );
   }
 

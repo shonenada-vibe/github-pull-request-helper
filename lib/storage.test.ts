@@ -63,6 +63,16 @@ describe('hasCredentials', () => {
     // Anthropic key is irrelevant when the openai provider is active.
     expect(hasCredentials({ ...base, anthropicApiKey: 'x' })).toBe(false);
   });
+
+  it('requires token + base URL for the carevie provider', () => {
+    const base = { ...DEFAULT_SETTINGS, githubToken: 'a', provider: 'carevie' as const };
+    // Default base URL is prefilled, so only the token is missing.
+    expect(hasCredentials(base)).toBe(false);
+    expect(hasCredentials({ ...base, carevieToken: 't' })).toBe(true);
+    expect(hasCredentials({ ...base, carevieToken: 't', carevieBaseUrl: '' })).toBe(
+      false,
+    );
+  });
 });
 
 describe('grouping cache', () => {
