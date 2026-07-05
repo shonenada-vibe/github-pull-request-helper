@@ -1,0 +1,72 @@
+name: Build CRX
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-crx:
+    name: Build CRX
+    runs-on: ubuntu-latest
+    env:
+      CRX_PRIVATE_KEY_BASE64: ${{ secrets.CRX_PRIVATE_KEY_BASE64 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Set up Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test
+
+      - name: Build extension
+        run: bun run build
+
+      - name: Pack CRX
+        id: pack-crx
+        run: |
+          set -euo pipefail
+
+          pack_args=(--pack-extension="$PWD/.output/chrome-mv3")
+          if [ -n "${CRX_PRIVATE_KEY_BASE64:-}" ]; then
+            printf '%s' "$CRX_PRIVATE_KEY_BASE64" | base64 --decode > crx.pem
+            pack_args+=(--pack-extension-key="$PWD/crx.pem")
+          fi
+
+          xvfb-run --auto-servernum "${{ steps.setup-chrome.outputs.chrome-path }}" "${pack_args[@]}"
+
+          safe_tag="$(printf '%s' "$GITHUB_REF_NAME" | tr '/\\:*?"<>|' '-')"
+          mkdir -p artifacts
+          cp .output/chrome-mv3.crx "artifacts/github-differ-${safe_tag}.crx"
+          echo "artifact_name=github-differ-${safe_tag}-crx" >> "$GITHUB_OUTPUT"
+
+      - name: Upload CRX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pack-crx.outputs.artifact_name }}
+          path: artifacts/*.crx
+          if-no-files-found: error
