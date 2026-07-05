@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          pack_args=(--pack-extension="$PWD/.output/chrome-mv3")
+          pack_args=(--no-sandbox --pack-extension="$PWD/.output/chrome-mv3")
           if [ -n "${CRX_PRIVATE_KEY_BASE64:-}" ]; then
             printf '%s' "$CRX_PRIVATE_KEY_BASE64" | base64 --decode > crx.pem
             pack_args+=(--pack-extension-key="$PWD/crx.pem")
