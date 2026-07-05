@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://wxt.dev/api/config.html
 export default defineConfig({
+  outDir: 'build',
   modules: ['@wxt-dev/module-svelte'],
   vite: () => ({
     plugins: [tailwindcss()],

@@ -28,5 +28,5 @@ echo "    make dev     # build the unpacked extension with HMR (wxt dev)"
 echo "    make build   # production build"
 echo "    make test    # unit tests"
 echo
-echo "Then load the unpacked extension from .output/chrome-mv3/ in your browser,"
+echo "Then load the unpacked extension from build/chrome-mv3/ in your browser,"
 echo "open the Options page, and paste a GitHub PAT + Anthropic API key."

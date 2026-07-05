@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 // (A full in-browser smoke test against a loaded unpacked extension is documented
 // in tests/e2e/README.md — it requires `bunx playwright install` and a display.)
 const here = dirname(fileURLToPath(import.meta.url));
-const OUTPUT = resolve(here, '../../.output/chrome-mv3');
+const OUTPUT = resolve(here, '../../build/chrome-mv3');
 
 test('built manifest targets GitHub and grants API host permissions', async () => {
   const manifest = JSON.parse(

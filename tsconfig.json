@@ -16,5 +16,5 @@
     "*.ts",
     ".wxt/**/*"
   ],
-  "exclude": ["node_modules", ".output"]
+  "exclude": ["node_modules", "build", ".output"]
 }

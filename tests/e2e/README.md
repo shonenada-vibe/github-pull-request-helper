@@ -12,7 +12,7 @@ a CI job with a display:
 
 1. `bunx playwright install chromium`
 2. `make build`
-3. Launch Chromium with the unpacked extension from `.output/chrome-mv3/` using a
+3. Launch Chromium with the unpacked extension from `build/chrome-mv3/` using a
    persistent context (`--disable-extensions-except` / `--load-extension`).
 4. Set a GitHub PAT + Anthropic key on the Options page.
 5. Open a PR's **Files changed** tab and assert the `github-differ` panel mounts,

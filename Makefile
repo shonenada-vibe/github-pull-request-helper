@@ -34,4 +34,4 @@ zip: ## Package the extension for distribution
 	bun run zip
 
 clean: ## Remove build artifacts
-	rm -rf .output node_modules/.cache
+	rm -rf build .output node_modules/.cache

@@ -12,18 +12,23 @@ The grouping and reading order are produced by a heuristic pre-pass (cheap, no L
 Claude call that clusters the remaining "interesting" hunks.
 
 ## Status
+
 Early development. See `tasks.json` for the roadmap, `PROJECT_CONTEXT.md` for the design, and
 `CLAUDE.md` for the agent workflow.
 
 ## Stack
+
 TypeScript · [WXT](https://wxt.dev) (Manifest V3) · Svelte · Tailwind · Bun · `@anthropic-ai/sdk`.
 
 ## Quick start
+
 ```bash
 ./setup.sh        # installs deps locally (requires Bun)
 make dev          # build unpacked extension with HMR
 ```
-Load `.output/chrome-mv3/` as an unpacked extension, open the Options page, and add:
+
+Load `build/chrome-mv3/` as an unpacked extension, open the Options page, and add:
+
 - a **GitHub fine-grained PAT** (read-only: Pull requests + Contents),
 - an **LLM provider**:
   - **Anthropic** — an Anthropic API key + model (defaults to `claude-opus-4-8`), or

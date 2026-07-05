@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          pack_args=(--no-sandbox --pack-extension="$PWD/.output/chrome-mv3")
+          pack_args=(--no-sandbox --pack-extension="$PWD/build/chrome-mv3")
           if [ -n "${CRX_PRIVATE_KEY_BASE64:-}" ]; then
             printf '%s' "$CRX_PRIVATE_KEY_BASE64" | base64 --decode > crx.pem
             pack_args+=(--pack-extension-key="$PWD/crx.pem")
@@ -61,7 +61,7 @@ jobs:
 
           safe_tag="$(printf '%s' "$GITHUB_REF_NAME" | tr '/\\:*?"<>|' '-')"
           mkdir -p artifacts
-          cp .output/chrome-mv3.crx "artifacts/github-differ-${safe_tag}.crx"
+          cp build/chrome-mv3.crx "artifacts/github-differ-${safe_tag}.crx"
           echo "artifact_name=github-differ-${safe_tag}-crx" >> "$GITHUB_OUTPUT"
 
       - name: Upload CRX artifact

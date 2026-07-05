@@ -4,7 +4,13 @@ import tseslint from 'typescript-eslint';
 // Lints TypeScript sources. Svelte files are type-checked via `svelte-check`.
 export default tseslint.config(
   {
-    ignores: ['.wxt/**', '.output/**', 'node_modules/**', '**/*.svelte'],
+    ignores: [
+      '.wxt/**',
+      'build/**',
+      '.output/**',
+      'node_modules/**',
+      '**/*.svelte',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
