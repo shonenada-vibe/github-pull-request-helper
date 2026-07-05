@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-crx:
@@ -70,3 +70,25 @@ jobs:
           name: ${{ steps.pack-crx.outputs.artifact_name }}
           path: artifacts/*.crx
           if-no-files-found: error
+
+      - name: Create release and upload CRX
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          crx_file="$(find artifacts -maxdepth 1 -type f -name '*.crx' -print -quit)"
+          if [ -z "$crx_file" ]; then
+            echo "No CRX artifact found"
+            exit 1
+          fi
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$crx_file" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$crx_file" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes \
+              --verify-tag
+          fi
